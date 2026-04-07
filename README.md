@@ -1,6 +1,6 @@
 # Diagramforce
 
-Browser-based visual diagramming tool for Salesforce architects and consultants. Create architecture diagrams, data models, process flows, org charts, and Gantt charts - all in your browser with no backend, no build step, and no data leaving your machine.
+Free browser-based visual diagramming tool for Salesforce architects and consultants. Create architecture diagrams, data models, process flows, org charts, and Gantt charts - all in your browser with no account, no backend, and no data leaving your machine.
 
 **[diagramforce.mateuszdabrowski.pl](https://diagramforce.mateuszdabrowski.pl)**
 

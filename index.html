@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Visual Salesforce architecture diagram editor for data models, process flows, org charts, and Gantt charts. Free, browser-based, no sign-up required.">
+  <meta name="theme-color" content="#1D73C9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#DA4E55" media="(prefers-color-scheme: dark)">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self';">
   <title>Diagramforce</title>
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/favicon.png">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
   <!-- JointJS v4 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@joint/core@4.0.4/dist/joint.min.css" integrity="sha384-W68LL3jsbqfNeDZD23ZWpZ6cMqF7EWlc5Bp5uVXIDJAQ4IT21p8irMFyAmrunfCU" crossorigin="anonymous">
@@ -23,7 +28,7 @@
 </head>
 <body>
   <!-- Hidden SLDS icon sprites (loaded by js/icons.js) -->
-  <div id="slds-icons" style="display:none"></div>
+  <div id="slds-icons" style="display:none" aria-hidden="true"></div>
 
   <!-- App Layout -->
   <div id="app" class="sf-app">
@@ -38,9 +43,9 @@
         <div class="sf-toolbar__group">
           <div class="sf-toolbar__dropdown">
             <button id="btn-save" class="sf-toolbar__button" title="Save">
-              <svg class="sf-toolbar__icon"><use href="#save"></use></svg>
+              <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#save"></use></svg>
               <span>Save</span>
-              <svg class="sf-toolbar__chevron" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <svg class="sf-toolbar__chevron" aria-hidden="true" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             </button>
             <div class="sf-toolbar__menu">
               <button id="btn-save-browser" class="sf-toolbar__menu-item">Save to Browser</button>
@@ -51,9 +56,9 @@
           </div>
           <div class="sf-toolbar__dropdown">
             <button id="btn-load" class="sf-toolbar__button" title="Load">
-              <svg class="sf-toolbar__icon"><use href="#open_folder"></use></svg>
+              <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#open_folder"></use></svg>
               <span>Load</span>
-              <svg class="sf-toolbar__chevron" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <svg class="sf-toolbar__chevron" aria-hidden="true" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             </button>
             <div class="sf-toolbar__menu">
               <button id="btn-load-browser" class="sf-toolbar__menu-item">Load from Browser</button>
@@ -63,9 +68,9 @@
         </div>
         <div class="sf-toolbar__dropdown" id="display-dropdown">
             <button id="btn-display" class="sf-toolbar__button" title="Display options">
-              <svg class="sf-toolbar__icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3C4 3 1 8 1 8s3 5 7 5 7-5 7-5-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+              <svg class="sf-toolbar__icon" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3C4 3 1 8 1 8s3 5 7 5 7-5 7-5-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
               <span>Display</span>
-              <svg class="sf-toolbar__chevron" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <svg class="sf-toolbar__chevron" aria-hidden="true" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             </button>
             <div class="sf-toolbar__menu">
               <button id="btn-display-api" class="sf-toolbar__menu-item">Show API Names</button>
@@ -88,11 +93,11 @@
         <span id="last-saved" class="sf-toolbar__saved-label" style="display:none"></span>
         <div class="sf-toolbar__separator"></div>
         <div class="sf-toolbar__group">
-          <button id="btn-undo" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Undo (Ctrl+Z)" disabled>
-            <svg class="sf-toolbar__icon"><use href="#undo"></use></svg>
+          <button id="btn-undo" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+            <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#undo"></use></svg>
           </button>
-          <button id="btn-redo" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Redo (Ctrl+Shift+Z)" disabled>
-            <svg class="sf-toolbar__icon"><use href="#redo"></use></svg>
+          <button id="btn-redo" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>
+            <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#redo"></use></svg>
           </button>
         </div>
       </div>
@@ -100,38 +105,38 @@
       <!-- Center: Grid + Zoom -->
       <div class="sf-toolbar__center">
         <div class="sf-toolbar__group">
-          <button id="btn-grid" class="sf-toolbar__button sf-toolbar__button--icon-only sf-toolbar__button--active" title="Toggle grid">
-            <svg class="sf-toolbar__icon" viewBox="0 0 16 16" fill="currentColor">
+          <button id="btn-grid" class="sf-toolbar__button sf-toolbar__button--icon-only sf-toolbar__button--active" title="Toggle grid" aria-label="Toggle grid">
+            <svg class="sf-toolbar__icon" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
               <path d="M0 1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V1zm6 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V1zm6 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V1zM0 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V7zm6 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7zm6 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V7zM0 13a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1v-2zm6 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2zm6 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2z"/>
             </svg>
           </button>
         </div>
         <div class="sf-toolbar__separator"></div>
         <div class="sf-toolbar__group">
-          <button id="btn-zoom-out" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Zoom out (-)">
-            <svg class="sf-toolbar__icon"><use href="#dash"></use></svg>
+          <button id="btn-zoom-out" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Zoom out (-)" aria-label="Zoom out">
+            <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#dash"></use></svg>
           </button>
           <span id="zoom-level" class="sf-toolbar__zoom-level">100%</span>
-          <button id="btn-zoom-in" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Zoom in (+)">
-            <svg class="sf-toolbar__icon"><use href="#add"></use></svg>
+          <button id="btn-zoom-in" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Zoom in (+)" aria-label="Zoom in">
+            <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#add"></use></svg>
           </button>
-          <button id="btn-zoom-fit" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Fit to content (Ctrl+0)">
-            <svg class="sf-toolbar__icon"><use href="#expand"></use></svg>
+          <button id="btn-zoom-fit" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Fit to content (Ctrl+0)" aria-label="Fit to content">
+            <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#expand"></use></svg>
           </button>
         </div>
       </div>
 
       <!-- Right: Alignment + Theme -->
       <div class="sf-toolbar__right">
-        <button id="btn-share-url" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Share as URL">
-          <svg class="sf-toolbar__icon"><use href="#share_link"></use></svg>
+        <button id="btn-share-url" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Share as URL" aria-label="Share as URL">
+          <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#share_link"></use></svg>
         </button>
-        <button id="btn-about" class="sf-toolbar__button sf-toolbar__button--icon-only" title="About Diagramforce">
-          <svg class="sf-toolbar__icon" viewBox="0 0 16 16" fill="currentColor">
+        <button id="btn-about" class="sf-toolbar__button sf-toolbar__button--icon-only" title="About Diagramforce" aria-label="About Diagramforce">
+          <svg class="sf-toolbar__icon" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 12.5a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11zM7.25 5a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0zM7.25 7h1.5v4.5h-1.5V7z"/>
           </svg>
         </button>
-        <button id="btn-theme" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Toggle theme">
+        <button id="btn-theme" class="sf-toolbar__button sf-toolbar__button--icon-only" title="Toggle theme" aria-label="Toggle theme">
           <svg class="sf-toolbar__icon sf-toolbar__icon--theme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <!-- moon (dark mode indicator) -->
             <path class="sf-icon-moon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -139,9 +144,68 @@
             <g class="sf-icon-sun"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></g>
           </svg>
         </button>
-        <button id="btn-toggle-stencil" class="sf-toolbar__button sf-toolbar__button--icon-only sf-toolbar__button--active" title="Toggle stencil panel">
-          <svg class="sf-toolbar__icon"><use href="#side_list"></use></svg>
+        <button id="btn-toggle-stencil" class="sf-toolbar__button sf-toolbar__button--icon-only sf-toolbar__button--active" title="Toggle stencil panel" aria-label="Toggle stencil panel">
+          <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#side_list"></use></svg>
         </button>
+        <!-- Mobile-only fit to content (duplicated from center group) -->
+        <button id="btn-zoom-fit-mobile" class="sf-toolbar__button sf-toolbar__button--icon-only sf-toolbar__mobile-only" title="Fit to content" aria-label="Fit to content">
+          <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#expand"></use></svg>
+        </button>
+      </div>
+
+      <!-- Mobile undo (shown only on mobile, left of hamburger) -->
+      <button id="btn-undo-mobile" class="sf-toolbar__button sf-toolbar__button--icon-only sf-toolbar__mobile-only" title="Undo" aria-label="Undo" disabled>
+        <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#undo"></use></svg>
+      </button>
+
+      <!-- Mobile hamburger (shown only on mobile) -->
+      <div class="sf-toolbar__hamburger-wrap">
+        <button id="btn-hamburger" class="sf-toolbar__button sf-toolbar__button--icon-only sf-toolbar__hamburger-btn" title="Menu" aria-label="Menu" aria-expanded="false">
+          <svg class="sf-toolbar__icon" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
+            <rect x="1" y="2.5" width="14" height="1.8" rx="0.9"/>
+            <rect x="1" y="7.1" width="14" height="1.8" rx="0.9"/>
+            <rect x="1" y="11.7" width="14" height="1.8" rx="0.9"/>
+          </svg>
+        </button>
+        <div id="hamburger-menu" class="sf-toolbar__hamburger-menu">
+          <button class="sf-toolbar__menu-item" data-action="save">
+            <svg class="sf-toolbar__menu-icon" aria-hidden="true" width="16" height="16"><use href="#save"></use></svg>
+            Save
+          </button>
+          <button class="sf-toolbar__menu-item" data-action="load">
+            <svg class="sf-toolbar__menu-icon" aria-hidden="true" width="16" height="16"><use href="#open_folder"></use></svg>
+            Load
+          </button>
+          <button class="sf-toolbar__menu-item" data-action="display">
+            <svg class="sf-toolbar__menu-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3C4 3 1 8 1 8s3 5 7 5 7-5 7-5-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+            Display
+          </button>
+          <div class="sf-toolbar__menu-separator" role="separator"></div>
+          <button class="sf-toolbar__menu-item" data-action="undo" disabled>
+            <svg class="sf-toolbar__menu-icon" aria-hidden="true" width="16" height="16"><use href="#undo"></use></svg>
+            Undo
+          </button>
+          <button class="sf-toolbar__menu-item" data-action="redo" disabled>
+            <svg class="sf-toolbar__menu-icon" aria-hidden="true" width="16" height="16"><use href="#redo"></use></svg>
+            Redo
+          </button>
+          <div class="sf-toolbar__menu-separator" role="separator"></div>
+          <button class="sf-toolbar__menu-item" data-action="share">
+            <svg class="sf-toolbar__menu-icon" aria-hidden="true" width="16" height="16"><use href="#share_link"></use></svg>
+            Share as URL
+          </button>
+          <button class="sf-toolbar__menu-item" data-action="theme">
+            <svg class="sf-toolbar__menu-icon sf-toolbar__icon--theme" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path class="sf-icon-moon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              <g class="sf-icon-sun"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></g>
+            </svg>
+            Toggle Theme
+          </button>
+          <button class="sf-toolbar__menu-item" data-action="about">
+            <svg class="sf-toolbar__menu-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 12.5a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11zM7.25 5a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0zM7.25 7h1.5v4.5h-1.5V7z"/></svg>
+            About
+          </button>
+        </div>
       </div>
     </header>
 
@@ -159,14 +223,15 @@
     <!-- Main content area -->
     <div class="sf-main">
       <!-- Properties Panel (left sidebar inspector) -->
-      <aside id="properties-panel" class="sf-properties sf-properties--hidden">
+      <aside id="properties-panel" class="sf-properties sf-properties--hidden" aria-label="Properties panel">
+        <div class="sf-drag-handle" data-target="properties-panel"></div>
         <div class="sf-properties__header">
           <div class="sf-properties__title-wrap">
             <span id="properties-type" class="sf-properties__type-badge"></span>
             <span id="properties-title" class="sf-properties__title">Properties</span>
           </div>
-          <button id="btn-close-properties" class="sf-toolbar__button" title="Close inspector">
-            <svg class="sf-toolbar__icon"><use href="#close"></use></svg>
+          <button id="btn-close-properties" class="sf-toolbar__button" title="Close inspector" aria-label="Close inspector">
+            <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#close"></use></svg>
           </button>
         </div>
         <div id="properties-body" class="sf-properties__body">
@@ -183,9 +248,10 @@
       </div>
 
       <!-- Stencil Panel (right sidebar) -->
-      <aside id="stencil-panel" class="sf-stencil">
+      <aside id="stencil-panel" class="sf-stencil" aria-label="Component stencil">
+        <div class="sf-drag-handle" data-target="stencil-panel"></div>
         <div class="sf-stencil__header">
-          <input type="search" id="stencil-search" class="sf-stencil__search" placeholder="Search components...">
+          <input type="search" id="stencil-search" class="sf-stencil__search" placeholder="Search components..." aria-label="Search components">
         </div>
         <div id="stencil-categories" class="sf-stencil__body">
           <!-- Categories rendered by js/stencil.js -->
@@ -201,7 +267,7 @@
       <div class="sf-modal__header">
         <h2 id="load-modal-title" class="sf-modal__title">Load Diagram</h2>
         <button id="btn-close-load-modal" class="sf-toolbar__button" aria-label="Close">
-          <svg class="sf-toolbar__icon"><use href="#close"></use></svg>
+          <svg class="sf-toolbar__icon" aria-hidden="true"><use href="#close"></use></svg>
         </button>
       </div>
       <div id="load-modal-list" class="sf-modal__body">
@@ -217,7 +283,7 @@
       <div class="sf-modal__header">
         <h2 id="about-modal-title" class="sf-modal__title">About Diagramforce</h2>
         <button id="btn-close-about" class="sf-toolbar__button" aria-label="Close">
-          <svg class="sf-toolbar__icon" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
+          <svg class="sf-toolbar__icon" aria-hidden="true" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
         </button>
       </div>
       <div class="sf-modal__body sf-about__body">
@@ -236,19 +302,19 @@
           <span class="sf-about__separator">·</span>
           <a href="https://www.linkedin.com/in/mateusz-dabrowski-pl/" target="_blank" rel="noopener" class="sf-about__link">Feedback</a>
         </div>
-        <div class="sf-about__meta" style="margin-top: 4px;">
-          <span style="font-size: 11px; color: var(--text-muted);">Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener" class="sf-about__link">CC BY-NC-SA 4.0</a></span>
+        <div class="sf-about__meta sf-about__meta--license">
+          <span class="sf-about__license-text">Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener" class="sf-about__link">CC BY-NC-SA 4.0</a></span>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Hidden file input for JSON import -->
-  <input type="file" id="file-input" accept=".json" multiple style="display:none">
+  <input type="file" id="file-input" accept=".json" multiple style="display:none" aria-label="Import JSON file">
 
   <!-- Scripts: JointJS as global, then app as ES module -->
-  <script src="https://cdn.jsdelivr.net/npm/@joint/core@4.0.4/dist/joint.min.js" integrity="sha384-fNdkeEn04ykjJJcUJiNFCANrCKn6m3AJgdpkIqgUF2hbTHQMCXbxsldLijUxJEEb" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js" integrity="sha384-rNlaE5fs9dGIjmxWDALQh/RBAaGRYT5ChrzHo6tRfgrZ36iRFAiquP5g41Jsv+0j" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@joint/core@4.0.4/dist/joint.min.js" integrity="sha384-fNdkeEn04ykjJJcUJiNFCANrCKn6m3AJgdpkIqgUF2hbTHQMCXbxsldLijUxJEEb" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js" integrity="sha384-rNlaE5fs9dGIjmxWDALQh/RBAaGRYT5ChrzHo6tRfgrZ36iRFAiquP5g41Jsv+0j" crossorigin="anonymous"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

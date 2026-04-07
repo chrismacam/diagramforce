@@ -1,6 +1,5 @@
+/* cursor: default prevents text cursor over canvas; position/background set in layout.css */
 .sf-canvas {
-  position: relative;
-  background: var(--bg-canvas);
   cursor: default;
 }
 
@@ -95,4 +94,29 @@
 @keyframes sf-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+/* ── Mobile touch: larger ports & link tools ──────────────────── */
+@media (max-width: 768px) {
+  /* Make ports bigger for touch (scale up from 5px radius to ~12px) */
+  .joint-port circle {
+    r: 10;
+    stroke-width: 2;
+  }
+
+  /* Show ports only on the tapped/selected element (base CSS already hides them) */
+  .joint-element.selected .joint-port {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Link vertex handles — bigger for touch */
+  .joint-link .marker-vertex {
+    r: 12;
+  }
+
+  /* Wider invisible hit area for tapping/dragging links */
+  .joint-link .connection-wrap {
+    stroke-width: 24px;
+  }
 }

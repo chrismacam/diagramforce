@@ -336,12 +336,6 @@
   color: #DA4E55;
 }
 
-.sf-prop-icon-none {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-  font-style: italic;
-}
-
 /* ── Action buttons ────────────────────────────────────── */
 
 .sf-properties__btn {
@@ -649,23 +643,6 @@
   margin-bottom: 2px;
 }
 
-/* Show API Names toggle */
-.sf-field-api-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-  cursor: pointer;
-  user-select: none;
-  margin-bottom: 4px;
-}
-
-.sf-field-api-toggle input[type="checkbox"] {
-  margin: 0;
-  cursor: pointer;
-}
-
 /* ── Marker picker (Source/Target end) ────────────────── */
 
 .sf-marker-picker {
@@ -757,8 +734,8 @@
     right: 0;
     bottom: 0;
     width: 100%;
-    height: 50vh;
-    max-height: 50vh;
+    height: 25vh;
+    max-height: 80vh;
     border-right: none;
     border-top: 1px solid var(--border-color);
     transform: translateY(0);
@@ -769,6 +746,55 @@
   .sf-properties--hidden {
     transform: translateY(100%);
     box-shadow: none;
+  }
+
+  .sf-properties .sf-drag-handle {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--properties-bg);
+  }
+
+  .sf-properties--hidden .sf-drag-handle {
+    display: none;
+  }
+
+  /* On mobile, let the panel content scroll together (body + footer) */
+  .sf-properties {
+    overflow-y: auto;
+  }
+
+  .sf-properties__body {
+    flex: none;
+    overflow: visible;
+  }
+
+  .sf-properties__footer {
+    flex-shrink: 0;
+  }
+
+  /* Touch-friendly inputs and controls */
+  .sf-properties__input,
+  .sf-properties select {
+    min-height: 40px;
+    font-size: var(--font-size-md);
+    padding: 8px var(--spacing-sm);
+  }
+
+  .sf-properties__btn,
+  .sf-properties button {
+    min-height: 40px;
+    font-size: var(--font-size-sm);
+  }
+
+  .sf-section__header {
+    min-height: 40px;
+    padding: 10px var(--spacing-md);
+  }
+
+  .sf-properties__label {
+    font-size: 11px;
   }
 }
 

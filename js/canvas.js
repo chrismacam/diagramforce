@@ -504,6 +504,7 @@ export function init() {
   // --- Pan (drag on blank canvas area) ---
   paper.on('blank:pointerdown', (evt) => {
     if (evt.shiftKey) return; // shift+drag is rubber-band in selection.js
+    if (evt.pointerType === 'touch') return; // touch pan handled separately
     isPanning = true;
     panStart = { x: evt.clientX, y: evt.clientY };
     document.body.style.cursor = 'grabbing';
@@ -522,6 +523,74 @@ export function init() {
     if (isPanning) {
       isPanning = false;
       document.body.style.cursor = '';
+    }
+  });
+
+  // --- Touch: single-finger pan + pinch-to-zoom ---
+  let touchPanStart = null;
+  let touchPinchDist = null;
+  let touchPinchZoom = null;
+  let touchPinchCenter = null;
+
+  const canvasEl = document.getElementById('canvas-container');
+
+  canvasEl.addEventListener('touchstart', (evt) => {
+    if (evt.touches.length === 1) {
+      // Single-finger → pan
+      touchPanStart = { x: evt.touches[0].clientX, y: evt.touches[0].clientY };
+      touchPinchDist = null;
+    } else if (evt.touches.length === 2) {
+      // Two-finger → pinch zoom
+      touchPanStart = null;
+      const dx = evt.touches[1].clientX - evt.touches[0].clientX;
+      const dy = evt.touches[1].clientY - evt.touches[0].clientY;
+      touchPinchDist = Math.hypot(dx, dy);
+      touchPinchZoom = currentZoom;
+      touchPinchCenter = {
+        x: (evt.touches[0].clientX + evt.touches[1].clientX) / 2,
+        y: (evt.touches[0].clientY + evt.touches[1].clientY) / 2,
+      };
+      evt.preventDefault();
+    }
+  }, { passive: false });
+
+  canvasEl.addEventListener('touchmove', (evt) => {
+    if (evt.touches.length === 1 && touchPanStart) {
+      // Single-finger pan
+      const dx = evt.touches[0].clientX - touchPanStart.x;
+      const dy = evt.touches[0].clientY - touchPanStart.y;
+      touchPanStart = { x: evt.touches[0].clientX, y: evt.touches[0].clientY };
+      const t = paper.translate();
+      paper.translate(t.tx + dx, t.ty + dy);
+      evt.preventDefault();
+    } else if (evt.touches.length === 2 && touchPinchDist != null) {
+      // Pinch zoom
+      const dx = evt.touches[1].clientX - evt.touches[0].clientX;
+      const dy = evt.touches[1].clientY - evt.touches[0].clientY;
+      const dist = Math.hypot(dx, dy);
+      const scale = dist / touchPinchDist;
+      const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, touchPinchZoom * scale));
+      if (newZoom !== currentZoom) {
+        const paperRect = paper.el.getBoundingClientRect();
+        const cx = touchPinchCenter.x - paperRect.left;
+        const cy = touchPinchCenter.y - paperRect.top;
+        const t = paper.translate();
+        const s = newZoom / currentZoom;
+        paper.scale(newZoom, newZoom);
+        paper.translate(cx - s * (cx - t.tx), cy - s * (cy - t.ty));
+        currentZoom = newZoom;
+        updateZoomDisplay();
+      }
+      evt.preventDefault();
+    }
+  }, { passive: false });
+
+  canvasEl.addEventListener('touchend', () => {
+    touchPanStart = null;
+    if (touchPinchDist != null) {
+      touchPinchDist = null;
+      touchPinchZoom = null;
+      touchPinchCenter = null;
     }
   });
 
@@ -888,6 +957,9 @@ export function migrateLinks() {
     });
     link.labels(newLabels);
   }
+
+  // Force all link views to re-render (clears stale routing/connection-point caches)
+  paper.updateViews();
 }
 
 // ── SimpleNode dynamic layout ───────────────────────────────────────
@@ -991,6 +1063,78 @@ function migrateContainer(el) {
     const accentColor = el.attr('accent/fill') || 'var(--color-primary)';
     el.attr('accentFill/fill', accentColor);
   }
+}
+
+// ── Mobile bottom-sheet drag handles ─────────────────────────────────
+const MOBILE_BP = 768;
+
+// Shared localStorage key for both panels — they share the same height
+const PANEL_HEIGHT_KEY = 'sf-panel-h';
+
+/** Apply saved panel height to a target element (mobile only). */
+function restorePanelHeight(target) {
+  if (window.innerWidth > MOBILE_BP) return;
+  const savedH = localStorage.getItem(PANEL_HEIGHT_KEY);
+  if (savedH) {
+    const h = Math.max(80, Math.min(window.innerHeight * 0.8, parseInt(savedH, 10)));
+    target.style.height = h + 'px';
+  }
+}
+
+export function initMobileDragHandles() {
+  document.querySelectorAll('.sf-drag-handle').forEach(handle => {
+    // Skip if already initialized
+    if (handle.dataset.dragInit) return;
+    handle.dataset.dragInit = '1';
+
+    const targetId = handle.dataset.target;
+    const target = document.getElementById(targetId);
+    if (!target) return;
+
+    restorePanelHeight(target);
+
+    // Use pointer events — works for both mouse and touch
+    handle.addEventListener('pointerdown', (evt) => {
+      // Only act on mobile
+      if (window.innerWidth > MOBILE_BP) return;
+
+      evt.preventDefault();
+      evt.stopPropagation();
+      handle.setPointerCapture(evt.pointerId);
+
+      const startY = evt.clientY;
+      const startH = target.getBoundingClientRect().height;
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
+
+      const onMove = (e) => {
+        const delta = startY - e.clientY;
+        const maxH = window.innerHeight * 0.8;
+        const newH = Math.max(80, Math.min(maxH, startH + delta));
+        target.style.height = newH + 'px';
+      };
+
+      const onEnd = () => {
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+        const finalH = Math.round(target.getBoundingClientRect().height);
+        localStorage.setItem(PANEL_HEIGHT_KEY, finalH);
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onEnd);
+        handle.removeEventListener('pointercancel', onEnd);
+      };
+
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onEnd);
+      handle.addEventListener('pointercancel', onEnd);
+    });
+  });
+}
+
+/** Sync properties panel height to shared panel height when it opens (mobile). */
+export function syncMobilePanelHeight(panelEl) {
+  if (window.innerWidth > MOBILE_BP || !panelEl) return;
+  restorePanelHeight(panelEl);
 }
 
 // ── Auto Layout (improved force-directed with tight packing) ─────────

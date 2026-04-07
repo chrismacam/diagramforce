@@ -7,9 +7,37 @@ const SAVE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const APP_VERSION = '1.0.0';
 export { APP_VERSION };
 
+// Maximum number of cells to accept from external sources (share URLs, JSON import)
+const MAX_CELL_COUNT = 2000;
+
+/** Sanitise graph JSON from untrusted sources (share URLs, imports).
+ *  Strips event-handler attributes and javascript: URIs to prevent XSS. */
+function sanitizeGraphJSON(graphData) {
+  if (!graphData || !Array.isArray(graphData.cells)) return graphData;
+  if (graphData.cells.length > MAX_CELL_COUNT) {
+    throw new Error(`Diagram exceeds maximum element count (${MAX_CELL_COUNT}).`);
+  }
+  const stripAttrs = (obj) => {
+    if (!obj || typeof obj !== 'object') return;
+    for (const key of Object.keys(obj)) {
+      // Remove event handler attributes (onclick, onload, etc.)
+      if (/^on[a-z]/i.test(key)) { delete obj[key]; continue; }
+      const val = obj[key];
+      // Remove javascript: URIs in string values
+      if (typeof val === 'string' && /^\s*javascript\s*:/i.test(val)) {
+        obj[key] = '';
+      } else if (typeof val === 'object' && val !== null) {
+        stripAttrs(val);
+      }
+    }
+  };
+  for (const cell of graphData.cells) { stripAttrs(cell); }
+  return graphData;
+}
+
 /** HTML-escape a string for safe innerHTML interpolation. */
 export function escHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // Callback invoked after a successful named save (used by tabs to update tab name)
@@ -244,8 +272,8 @@ export function getNamedSaves() {
         diagramType: data.diagramType || 'architecture',
         appVersion: data.appVersion || null,
       });
-    } catch {
-      // skip corrupt entries
+    } catch (err) {
+      console.warn('SF Diagrams: Skipping corrupt save entry:', key, err);
     }
   }
   return saves.sort((a, b) => b.timestamp - a.timestamp);
@@ -260,6 +288,7 @@ export async function loadNamedSave(key) {
     const name = data.name || key.replace(NAMED_SAVE_PREFIX, '');
     const ok = await checkVersionWarning(savedVer, name);
     if (!ok) return false;
+    if (data?.graph) sanitizeGraphJSON(data.graph);
     if (onImportCallback && data?.graph) {
       const type = data.diagramType || 'architecture';
       onImportCallback(name, type, data.graph, data.viewport);
@@ -316,6 +345,7 @@ export function importJSON() {
           const name = data.title || file.name.replace(/\.json$/i, '') || 'Imported';
           const ok = await checkVersionWarning(savedVer, name);
           if (!ok) return;
+          if (data?.graph) sanitizeGraphJSON(data.graph);
           if (onImportCallback && data?.graph) {
             // Load into a new tab
             const type = data.diagramType || 'architecture';
@@ -341,7 +371,7 @@ export function importJSON() {
 export const openJSON = importJSON;
 
 export function exportPNG(transparent = false) {
-  const withTransparency = transparent;
+  // transparent param used below for canvas background
 
   try {
     const contentBBox = paper.getContentBBox();
@@ -397,7 +427,7 @@ export function exportPNG(transparent = false) {
       canvas.height = exportH * scale;
       const ctx = canvas.getContext('2d');
 
-      if (!withTransparency) {
+      if (!transparent) {
         const theme = document.documentElement.getAttribute('data-theme');
         ctx.fillStyle = theme === 'dark' ? '#1A1A1A' : '#FAFAFA';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -604,6 +634,9 @@ export async function loadFromURL() {
       console.warn('SF Diagrams: Invalid share URL data');
       return false;
     }
+
+    // Sanitize graph data from untrusted URL source
+    sanitizeGraphJSON(data.graph);
 
     // Clear the hash so it doesn't reload on refresh
     history.replaceState(null, '', window.location.pathname);

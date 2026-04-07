@@ -193,20 +193,74 @@
   min-width: 0;
 }
 
+/* Drag handle base rule defined in layout.css */
+
 /* ── Mobile stencil — bottom panel ──────────────────────────────── */
 @media (max-width: 768px) {
   .sf-stencil {
     width: 100%;
     min-width: 100%;
-    height: 180px;
+    height: 25vh;
     border-left: none;
     border-top: 1px solid var(--border-color);
     flex-shrink: 0;
+    position: relative;
   }
 
   .sf-stencil--hidden {
     height: 0;
     min-width: 0;
     border-top: none;
+  }
+
+  .sf-stencil--hidden .sf-drag-handle {
+    display: none;
+  }
+
+  .sf-stencil .sf-drag-handle {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--stencil-bg);
+  }
+
+  /* Touch-friendly stencil items */
+  .sf-stencil__search {
+    padding: 10px var(--spacing-md);
+    font-size: var(--font-size-md);
+  }
+
+  .sf-stencil__item {
+    padding: 10px var(--spacing-sm);
+    min-height: 44px;
+    font-size: var(--font-size-md);
+  }
+
+  .sf-stencil__item-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .sf-stencil__item-icon--placeholder {
+    width: 26px;
+    height: 26px;
+  }
+
+  .sf-stencil__category-header {
+    padding: 10px var(--spacing-md);
+    min-height: 40px;
+    font-size: var(--font-size-xs);
+  }
+
+  .sf-stencil__items--grid {
+    grid-template-columns: repeat(auto-fill, 44px);
+    gap: 4px;
+  }
+
+  .sf-stencil__item--icon {
+    width: 44px;
+    height: 44px;
+    padding: 8px;
   }
 }

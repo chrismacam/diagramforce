@@ -85,12 +85,7 @@
   gap: 2px;
 }
 
-.sf-toolbar__saved-label {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-  padding: 0 var(--spacing-sm);
-}
+/* Duplicate removed — canonical rule below at .sf-toolbar__saved-label */
 
 .sf-toolbar__separator {
   width: 1px;
@@ -215,9 +210,14 @@
   white-space: nowrap;
 }
 
-.sf-toolbar__menu-item:hover {
+.sf-toolbar__menu-item:hover:not(:disabled) {
   background: var(--toolbar-button-hover);
   color: var(--text-primary);
+}
+
+.sf-toolbar__menu-item:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .sf-toolbar__menu-item--icon {
@@ -229,18 +229,6 @@
 .sf-toolbar__menu-icon {
   flex-shrink: 0;
   opacity: 0.7;
-}
-
-.sf-toolbar__menu-item--check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-.sf-toolbar__menu-item--check input[type="checkbox"] {
-  margin: 0;
-  cursor: pointer;
-  accent-color: var(--color-primary);
 }
 
 /* Theme toggle icon — moon/sun swap */
@@ -271,24 +259,103 @@
   color: var(--text-muted);
   white-space: nowrap;
   margin-left: 6px;
+  padding: 0 var(--spacing-sm);
   font-variant-numeric: tabular-nums;
+}
+
+.sf-toolbar__menu-separator {
+  border-top: 1px solid var(--border-color);
+  margin: 4px 0;
+}
+
+/* Mobile-only elements — hidden on desktop */
+.sf-toolbar__mobile-only {
+  display: none !important;
+}
+
+/* ── Hamburger menu (mobile only) ──────────────────────────────── */
+.sf-toolbar__hamburger-wrap {
+  display: none; /* hidden on desktop */
+  position: relative;
+}
+
+.sf-toolbar__hamburger-btn {
+  display: flex;
+}
+
+.sf-toolbar__hamburger-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 200px;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 300;
+  padding: 4px 0;
+}
+
+.sf-toolbar__hamburger-menu .sf-toolbar__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: var(--font-size-md);
+}
+
+.sf-toolbar__hamburger-menu .sf-toolbar__menu-icon {
+  fill: currentColor;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.sf-toolbar__hamburger-wrap--open .sf-toolbar__hamburger-menu {
+  display: block;
 }
 
 /* ── Mobile toolbar ────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .sf-toolbar {
-    height: 44px;
-    padding: 0 var(--spacing-sm);
-    gap: var(--spacing-xs);
+    height: 48px;
+    padding: 0 4px;
+    gap: 0;
+    justify-content: flex-start;
   }
 
-  .sf-toolbar__brand-text {
-    display: none;
+  /* Reorder: hamburger (1) | undo (2) | brand centered (3) | right buttons (4) */
+  .sf-toolbar__hamburger-wrap {
+    display: block;
+    flex-shrink: 0;
+    order: 1;
   }
 
+  .sf-toolbar__left {
+    order: 3;
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .sf-toolbar__center {
+    order: 5; /* hidden, but needed for ordering */
+  }
+
+  .sf-toolbar__right {
+    order: 4;
+    gap: 0;
+    flex-shrink: 0;
+  }
+
+  /* Brand: centered, only show logo + text */
   .sf-toolbar__brand {
-    margin-right: var(--spacing-xs);
-    gap: 4px;
+    margin-right: 0;
+    gap: 6px;
   }
 
   .sf-toolbar__brand-logo {
@@ -296,39 +363,62 @@
     height: 26px;
   }
 
-  /* Hide text labels on toolbar buttons — icons only */
-  .sf-toolbar__button span {
-    display: none;
+  .sf-toolbar__brand-text {
+    font-size: var(--font-size-md);
   }
 
-  .sf-toolbar__button {
-    padding: 4px 6px;
-    min-width: 28px;
-    min-height: 28px;
-    gap: 0;
+  /* Hide all main toolbar sections on mobile */
+  .sf-toolbar__left > .sf-toolbar__group,
+  .sf-toolbar__left > .sf-toolbar__dropdown,
+  .sf-toolbar__left > .sf-toolbar__saved-label,
+  .sf-toolbar__left > .sf-toolbar__separator,
+  .sf-toolbar__center,
+  .sf-toolbar__right > #btn-share-url,
+  .sf-toolbar__right > #btn-about,
+  .sf-toolbar__right > #btn-theme {
+    display: none !important;
   }
 
-  .sf-toolbar__chevron {
-    display: none;
+  /* Show mobile-only buttons */
+  .sf-toolbar__mobile-only {
+    display: inline-flex !important;
   }
 
-  .sf-toolbar__separator {
-    height: 16px;
-    margin: 0 4px;
+  /* Touch-friendly targets (44px minimum per Apple HIG) */
+  .sf-toolbar__right .sf-toolbar__button,
+  .sf-toolbar__hamburger-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px;
   }
 
-  .sf-toolbar__saved-label {
-    display: none;
+  .sf-toolbar__right .sf-toolbar__icon,
+  .sf-toolbar__hamburger-btn .sf-toolbar__icon {
+    width: 20px;
+    height: 20px;
   }
 
-  .sf-toolbar__center {
-    position: static !important;
-    transform: none !important;
-    flex: 0 0 auto;
+  /* Hamburger menu drops from left edge */
+  .sf-toolbar__hamburger-menu {
+    left: 0;
+    right: auto;
   }
 
-  .sf-toolbar__zoom-level {
-    min-width: 32px;
-    font-size: var(--font-size-xs);
+  /* Swap fit-to-content before stencil toggle on mobile */
+  .sf-toolbar__right #btn-zoom-fit-mobile { order: 1; }
+  .sf-toolbar__right #btn-toggle-stencil  { order: 2; }
+
+  /* Mobile undo button — right next to hamburger */
+  #btn-undo-mobile {
+    order: 2;
+    flex-shrink: 0;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px;
+  }
+
+  #btn-undo-mobile .sf-toolbar__icon {
+    width: 20px;
+    height: 20px;
   }
 }

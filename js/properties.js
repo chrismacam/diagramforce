@@ -2,7 +2,7 @@
 // Properties are grouped into collapsible accordion sections
 
 import { getAllIcons, getIconDataUri } from './icons.js';
-import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout } from './canvas.js';
+import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout, syncMobilePanelHeight } from './canvas.js';
 import { resizeDataObjectToFit, contrastTextColor } from './templates.js';
 import { duplicate as clipboardDuplicate } from './clipboard.js';
 
@@ -130,6 +130,7 @@ function cleanupCanvasHighlights() {
 
 function showProperties(cell) {
   panelEl.classList.remove('sf-properties--hidden');
+  syncMobilePanelHeight(panelEl);
   bodyEl.innerHTML = '';
   footerEl.innerHTML = '';
 
@@ -2886,7 +2887,8 @@ function addIconPicker(parent, label, currentHref, onChange, iconColorGetter) {
       const item = document.createElement('div');
       item.title = icon.name;
       item.style.cssText = 'width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:4px;flex-shrink:0;border:1px solid transparent;';
-      item.innerHTML = `<svg width="28" height="28" fill="var(--text-primary)"><use href="#${icon.id}"></use></svg>`;
+      const safeIconId = icon.id.replace(/[^a-zA-Z0-9_-]/g, '');
+      item.innerHTML = `<svg width="28" height="28" fill="var(--text-primary)"><use href="#${safeIconId}"></use></svg>`;
       item.addEventListener('mouseenter', () => { item.style.background = 'var(--toolbar-button-hover)'; item.style.borderColor = 'var(--border-color)'; });
       item.addEventListener('mouseleave', () => { item.style.background = ''; item.style.borderColor = 'transparent'; });
       item.addEventListener('mousedown', e => {

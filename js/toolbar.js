@@ -70,8 +70,21 @@ export function init(_modules) {
   btn('btn-redo').addEventListener('click', () => modules.history.redo());
 
   modules.history.onChange(() => {
-    btn('btn-undo').disabled = !modules.history.canUndo();
-    btn('btn-redo').disabled = !modules.history.canRedo();
+    const canUndo = modules.history.canUndo();
+    const canRedo = modules.history.canRedo();
+    btn('btn-undo').disabled = !canUndo;
+    btn('btn-redo').disabled = !canRedo;
+    // Sync mobile undo button
+    const undoM = document.getElementById('btn-undo-mobile');
+    if (undoM) undoM.disabled = !canUndo;
+    // Sync hamburger menu undo/redo items
+    const hMenu = document.getElementById('hamburger-menu');
+    if (hMenu) {
+      const hUndo = hMenu.querySelector('[data-action="undo"]');
+      const hRedo = hMenu.querySelector('[data-action="redo"]');
+      if (hUndo) hUndo.disabled = !canUndo;
+      if (hRedo) hRedo.disabled = !canRedo;
+    }
   });
 
   // Zoom
@@ -109,11 +122,33 @@ export function init(_modules) {
   btn('btn-close-about').addEventListener('click', hideAboutModal);
   btn('about-modal-overlay').addEventListener('click', hideAboutModal);
 
+  // Mobile fit-to-content button (duplicate of btn-zoom-fit)
+  const fitMobile = document.getElementById('btn-zoom-fit-mobile');
+  if (fitMobile) {
+    fitMobile.addEventListener('click', () => modules.canvas.fitContent());
+  }
+
+  // Mobile undo button
+  const undoMobile = document.getElementById('btn-undo-mobile');
+  if (undoMobile) {
+    undoMobile.addEventListener('click', () => modules.history.undo());
+  }
+
+  // Hamburger menu
+  setupHamburgerMenu();
+
   // Close dropdowns on outside click
   document.addEventListener('click', (evt) => {
     document.querySelectorAll('.sf-toolbar__dropdown--open').forEach(dd => {
       if (!dd.contains(evt.target)) dd.classList.remove('sf-toolbar__dropdown--open');
     });
+    // Also close hamburger menu
+    const hWrap = document.querySelector('.sf-toolbar__hamburger-wrap');
+    if (hWrap && !hWrap.contains(evt.target)) {
+      hWrap.classList.remove('sf-toolbar__hamburger-wrap--open');
+      const hBtn = document.getElementById('btn-hamburger');
+      if (hBtn) hBtn.setAttribute('aria-expanded', 'false');
+    }
   });
 
   // Adaptive zoom centering — switch to compact mode if overlap detected
@@ -169,10 +204,10 @@ function showLoadModal() {
     `;
     dialog.appendChild(footer);
 
-    wireSelectAll(bodyEl, footer, '.sf-modal__row-check', () => {
+    wireSelectAll(bodyEl, footer, '.sf-modal__row-check', async () => {
       const selected = [...bodyEl.querySelectorAll('.sf-modal__row-check:checked')];
       for (const chk of selected) {
-        modules.persistence.loadNamedSave(chk.dataset.saveKey);
+        await modules.persistence.loadNamedSave(chk.dataset.saveKey);
       }
       hideLoadModal();
     });
@@ -364,7 +399,7 @@ function getDiagramTypeIcon(type) {
 }
 
 function escHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
 }
 
 function showAboutModal() {
@@ -543,6 +578,98 @@ function applyDisplayFlagToAll(flag, value) {
     const t = el.get('type');
     if (isGanttFlag ? t.startsWith('sf.Gantt') : t === 'sf.DataObject') {
       el.set(flag, value);
+    }
+  });
+}
+
+function setupHamburgerMenu() {
+  const hBtn = document.getElementById('btn-hamburger');
+  const hWrap = hBtn?.closest('.sf-toolbar__hamburger-wrap');
+  if (!hBtn || !hWrap) return;
+
+  hBtn.addEventListener('click', (evt) => {
+    evt.stopPropagation();
+    const isOpen = hWrap.classList.toggle('sf-toolbar__hamburger-wrap--open');
+    hBtn.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  const menu = document.getElementById('hamburger-menu');
+  if (!menu) return;
+
+  menu.addEventListener('click', (evt) => {
+    const item = evt.target.closest('[data-action]');
+    if (!item) return;
+    const action = item.dataset.action;
+
+    // Close hamburger after action
+    hWrap.classList.remove('sf-toolbar__hamburger-wrap--open');
+    hBtn.setAttribute('aria-expanded', 'false');
+
+    switch (action) {
+      case 'save':
+        showSaveModal();
+        break;
+      case 'load':
+        showLoadModal();
+        break;
+      case 'display': {
+        // Open the display dropdown — temporarily show it for mobile
+        const dd = document.getElementById('display-dropdown');
+        if (dd) {
+          const menu = dd.querySelector('.sf-toolbar__menu');
+
+          const openDisplay = () => {
+            dd.style.cssText = 'display:block !important; position:fixed; top:48px; left:0; right:0; z-index:400;';
+            if (menu) {
+              menu.style.cssText = 'display:block; position:fixed; top:48px; left:0; right:0; min-width:100%; border-radius:0; box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+            }
+          };
+
+          const closeDisplay = () => {
+            dd.style.cssText = '';
+            if (menu) menu.style.cssText = '';
+            dd.classList.remove('sf-toolbar__dropdown--open');
+            document.removeEventListener('pointerdown', onOutside, true);
+          };
+
+          const onOutside = (e) => {
+            if (menu && !menu.contains(e.target)) {
+              closeDisplay();
+            }
+          };
+
+          // Close when a menu item inside is clicked
+          const onMenuItemClick = () => {
+            closeDisplay();
+            menu.removeEventListener('click', onMenuItemClick);
+          };
+          if (menu) menu.addEventListener('click', onMenuItemClick);
+
+          // Use requestAnimationFrame to avoid immediate close from the same event
+          requestAnimationFrame(() => {
+            openDisplay();
+            document.addEventListener('pointerdown', onOutside, true);
+          });
+        }
+        break;
+      }
+      case 'undo':
+        modules.history.undo();
+        break;
+      case 'redo':
+        modules.history.redo();
+        break;
+      case 'share':
+        modules.persistence.shareAsURL();
+        break;
+      case 'theme':
+        modules.theme.toggle();
+        if (modules.canvas.refreshGrid) modules.canvas.refreshGrid();
+        if (modules.canvas.refreshIcons) modules.canvas.refreshIcons();
+        break;
+      case 'about':
+        document.getElementById('btn-about')?.click();
+        break;
     }
   });
 }

@@ -58,6 +58,37 @@ select:focus-visible {
   outline: none;
 }
 
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ── Drag handle for mobile bottom sheets ─────────────────────── */
+.sf-drag-handle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  cursor: ns-resize;
+  touch-action: none;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sf-drag-handle::after {
+  content: '';
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
 /* ── Mobile layout ─────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .sf-main {
@@ -67,5 +98,6 @@ select:focus-visible {
   .sf-canvas {
     flex: 1;
     min-height: 0;
+    touch-action: none; /* Prevent browser gestures on canvas */
   }
 }

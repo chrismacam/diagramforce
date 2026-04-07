@@ -69,7 +69,10 @@ async function main() {
   tabs.init(graph, paper, canvas, selection, history, persistence, stencil);
   tabs.setupAutoSave();
 
-  // --- Phase 8: Check for shared diagram in URL hash ---
+  // --- Phase 8: Mobile interactions ---
+  canvas.initMobileDragHandles();
+
+  // --- Phase 9: Check for shared diagram in URL hash ---
   persistence.loadFromURL();
 
 }
