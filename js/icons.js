@@ -98,8 +98,60 @@ export function registerStencilIcons(stencilSvgs) {
   }
 }
 
+// ── ViewBox normalization ────────────────────────────────────────────
+// SLDS sprites have inconsistent padding: standard icons (1000×1000) fill ~60%,
+// utility icons (520×520) fill ~92%. This measures each symbol's actual bounding
+// box and computes a cropped viewBox with consistent ~15% padding so all icons
+// appear the same visual size when rendered at the same pixel dimensions.
+const normalizedViewBoxes = new Map();
+
+export function normalizeViewBoxes() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '200');
+  svg.setAttribute('height', '200');
+  svg.style.cssText = 'position:absolute;left:-9999px;top:-9999px;overflow:hidden';
+  document.body.appendChild(svg);
+
+  for (const icon of iconRegistry) {
+    const sym = document.getElementById(icon.id);
+    if (!sym) continue;
+    const vb = sym.getAttribute('viewBox') || '0 0 52 52';
+    const [,, vbW, vbH] = vb.split(' ').map(Number);
+
+    svg.setAttribute('viewBox', vb);
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.innerHTML = sym.innerHTML;
+    svg.appendChild(g);
+
+    try {
+      const bbox = g.getBBox();
+      if (bbox.width > 0 && bbox.height > 0) {
+        const maxDim = Math.max(bbox.width, bbox.height);
+        const pad = maxDim * 0.08;
+        const side = maxDim + pad * 2;
+        const cx = bbox.x + bbox.width / 2;
+        const cy = bbox.y + bbox.height / 2;
+        const normalizedVB = `${(cx - side / 2).toFixed(1)} ${(cy - side / 2).toFixed(1)} ${side.toFixed(1)} ${side.toFixed(1)}`;
+        normalizedViewBoxes.set(icon.id, normalizedVB);
+        // Apply directly to the symbol so all <use> references render normalized
+        sym.setAttribute('viewBox', normalizedVB);
+      }
+    } catch (e) { /* skip icons that fail measurement */ }
+
+    svg.removeChild(g);
+  }
+
+  svg.remove();
+}
+
+/** Return the normalized (cropped) viewBox for an icon, or empty string if not computed. */
+export function getNormalizedViewBox(iconId) {
+  return normalizedViewBoxes.get(iconId) || '';
+}
+
 // Generate a data URI for an SLDS icon to use as JointJS <image> href.
 // Extracts the symbol's inner SVG content and wraps it in a standalone SVG.
+// Uses normalized viewBox to ensure consistent visual sizing across icon sets.
 export function getIconDataUri(iconId, color = '#FFFFFF', size = 32) {
   if (!iconId) return '';
 
@@ -113,7 +165,7 @@ export function getIconDataUri(iconId, color = '#FFFFFF', size = 32) {
   const safeColor = color.replace(/[^a-zA-Z0-9#(),.\s%-]/g, '');
   // Replace currentColor with the actual color (stencilSvg icons use currentColor)
   const innerContent = symbol.innerHTML.replace(/currentColor/g, safeColor);
-  const viewBox = symbol.getAttribute('viewBox') || '0 0 52 52';
+  const viewBox = normalizedViewBoxes.get(safeId) || symbol.getAttribute('viewBox') || '0 0 52 52';
 
   const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${viewBox}" fill="${safeColor}" data-icon-id="${safeId}">${innerContent}</svg>`;
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);

@@ -775,6 +775,36 @@ export function refreshIcons() {
   }
 }
 
+/** Regenerate ALL icon data URIs on canvas elements so they use current normalized viewBoxes. */
+export function refreshAllIconHrefs() {
+  if (!_iconDataUriFn) return;
+  for (const el of graph.getElements()) {
+    const type = el.get('type');
+    if (type === 'sf.SimpleNode') {
+      _refreshElementIcon(el, 'icon/href', 'label/fill');
+    } else if (type === 'sf.Container') {
+      _refreshElementIcon(el, 'headerIcon/href', null, '#FFFFFF');
+    }
+  }
+}
+
+function _refreshElementIcon(el, hrefAttr, fillAttr, defaultColor) {
+  const iconHref = el.attr(hrefAttr);
+  if (!iconHref) return;
+  const idMatch = iconHref.match(/data-icon-id(?:%3D|=)(?:%22|")([^%"]+)(?:%22|")/);
+  if (!idMatch) return;
+  const iconId = decodeURIComponent(idMatch[1]);
+  // Determine the icon color from the element's text color or the default
+  let color = defaultColor;
+  if (!color) {
+    const labelFill = fillAttr ? el.attr(fillAttr) : null;
+    color = (labelFill && !labelFill.startsWith('var('))
+      ? labelFill
+      : getComputedStyle(document.documentElement).getPropertyValue('--node-text').trim() || '#FFFFFF';
+  }
+  el.attr(hrefAttr, _iconDataUriFn(iconId, color));
+}
+
 export function getViewport() {
   return {
     zoom: currentZoom,
@@ -939,6 +969,8 @@ export function migrateNodes() {
       migrateContainer(el);
     }
   }
+  // Regenerate icon data URIs so all icons use current normalized viewBoxes
+  refreshAllIconHrefs();
 }
 
 function migrateContainer(el) {

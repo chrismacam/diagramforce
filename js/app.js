@@ -26,6 +26,9 @@ async function main() {
   // Register custom stencilSvg icons so they appear in icon pickers
   icons.registerStencilIcons(getAllStencilSvgs());
 
+  // Normalize viewBoxes across all icon sets for consistent visual sizing
+  icons.normalizeViewBoxes();
+
   // --- Phase 2: Canvas core ---
   shapes.register();
   canvas.setIconDataUriFn(icons.getIconDataUri);

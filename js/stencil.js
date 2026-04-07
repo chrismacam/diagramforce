@@ -146,7 +146,7 @@ function buildTemplateItem(template) {
   const iconHtml = template.stencilSvg
     ? `<svg class="sf-stencil__item-icon sf-stencil__item-icon--svg" viewBox="0 0 20 20">${template.stencilSvg}</svg>`
     : safeIconName
-    ? `<svg class="sf-stencil__item-icon" viewBox="0 0 52 52"><use href="#${safeIconName}"></use></svg>`
+    ? `<svg class="sf-stencil__item-icon"><use href="#${safeIconName}"></use></svg>`
     : `<div class="sf-stencil__item-icon sf-stencil__item-icon--placeholder"></div>`;
 
   item.innerHTML = iconHtml;
