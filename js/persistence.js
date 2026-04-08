@@ -4,7 +4,7 @@
 let graph, paper, canvasModule;
 const NAMED_SAVE_PREFIX = 'sfdiag::save::';
 const SAVE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 export { APP_VERSION };
 
 // Maximum number of cells to accept from external sources (share URLs, JSON import)
@@ -109,32 +109,58 @@ function compareSemver(a, b) {
 }
 
 /**
+ * Classify the version difference between saved and current app version.
+ * Returns 'none' | 'patch' | 'minor' | 'major'.
+ */
+export function classifyVersionDiff(savedVersion) {
+  if (!savedVersion) return 'major'; // no version at all — treat as major
+  const saved = savedVersion.split('.').map(Number);
+  const current = APP_VERSION.split('.').map(Number);
+  if (saved[0] !== current[0]) return 'major';
+  if (saved[1] !== current[1]) return 'minor';
+  if (saved[2] !== current[2]) return 'patch';
+  return 'none';
+}
+
+/**
  * Show a warning modal if the loaded data was saved with an older app version.
  * Returns a Promise that resolves to true (user wants to continue) or false.
+ *
+ * - Patch differences: no warning (silent load)
+ * - Minor differences: soft warning (should still work)
+ * - Major differences: strong warning (probably won't work)
+ * - No version info: treated as major
  */
 function checkVersionWarning(savedAppVersion, sourceName) {
-  // No version info (old save) or same/newer version — no warning needed
-  if (!savedAppVersion) {
-    return showVersionWarningModal(null, sourceName);
-  }
   if (compareSemver(savedAppVersion, APP_VERSION) >= 0) {
     return Promise.resolve(true); // same or newer — load without warning
   }
-  return showVersionWarningModal(savedAppVersion, sourceName);
+  const diff = classifyVersionDiff(savedAppVersion);
+  if (diff === 'none' || diff === 'patch') {
+    return Promise.resolve(true); // patch-only difference — no warning
+  }
+  return showVersionWarningModal(savedAppVersion, sourceName, diff);
 }
 
-function showVersionWarningModal(savedVersion, sourceName) {
+function showVersionWarningModal(savedVersion, sourceName, diff) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'sf-modal';
     overlay.style.zIndex = '10001';
 
     const savedLabel = savedVersion || 'unknown (no version)';
+    const isMajor = diff === 'major';
+    const title = isMajor ? 'Compatibility Warning' : 'Version Notice';
+    const message = isMajor
+      ? 'There were significant changes introduced since this diagram was saved. Your save probably won\'t load correctly.'
+      : 'There have been some changes since this diagram was saved, but it should still work.';
+    const loadLabel = isMajor ? 'Load Anyway' : 'Continue';
+
     overlay.innerHTML = `
       <div class="sf-modal__overlay"></div>
       <div class="sf-modal__dialog" style="width:440px">
         <div class="sf-modal__header">
-          <h2 class="sf-modal__title">Version Mismatch</h2>
+          <h2 class="sf-modal__title">${title}</h2>
         </div>
         <div class="sf-modal__body" style="padding:16px 20px">
           <p style="margin:0 0 12px">
@@ -143,12 +169,12 @@ function showVersionWarningModal(savedVersion, sourceName) {
             <strong>v${escHtml(APP_VERSION)}</strong>.
           </p>
           <p style="margin:0;color:var(--text-secondary)">
-            Some elements may not render correctly. Do you want to continue loading?
+            ${message}
           </p>
         </div>
         <div class="sf-modal__footer" style="justify-content:flex-end">
           <button class="sf-modal__btn" data-action="cancel">Cancel</button>
-          <button class="sf-modal__btn sf-modal__btn--primary" data-action="load">Load Anyway</button>
+          <button class="sf-modal__btn sf-modal__btn--primary" data-action="load">${loadLabel}</button>
         </div>
       </div>`;
 

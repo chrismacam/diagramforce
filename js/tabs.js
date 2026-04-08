@@ -1,7 +1,7 @@
 // Tabs — multi-diagram tab management
 // Each tab holds its own graph JSON, viewport, and undo/redo history.
 
-import { escHtml } from './persistence.js';
+import { escHtml, APP_VERSION, classifyVersionDiff } from './persistence.js';
 
 let graph, paper, canvasModule, selectionModule, historyModule, persistenceModule, stencilModule;
 let tabListEl;
@@ -159,6 +159,14 @@ function showNewDiagramModal() {
   const canDismiss = tabs.length > 0;
 
   if (canDismiss) {
+    // Add close button
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'sf-new-modal__close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+    closeBtn.addEventListener('click', () => { overlay.remove(); });
+    overlay.querySelector('.sf-new-modal__dialog').appendChild(closeBtn);
+
     // Close on backdrop click
     overlay.querySelector('.sf-new-modal__backdrop').addEventListener('click', () => { overlay.remove(); });
 
@@ -437,7 +445,7 @@ function saveTabs() {
   try {
     // Save lightweight tab metadata (not graph data — that's per-tab autosave)
     const data = tabs.map(t => ({ id: t.id, name: t.name, dirty: t.dirty }));
-    const meta = { activeTabId, nextId, tabs: data };
+    const meta = { activeTabId, nextId, appVersion: APP_VERSION, tabs: data };
 
     // Also save full graph state for each tab
     const full = tabs.map(t => ({
@@ -485,6 +493,18 @@ function restoreTabs() {
     }
 
     const data = JSON.parse(raw);
+
+    // Check stored version against current app version
+    const diff = classifyVersionDiff(data.appVersion || null);
+    if (diff === 'major') {
+      // Major version mismatch — session data is likely incompatible
+      localStorage.removeItem(STORAGE_KEY);
+      showSessionVersionWarning(data.appVersion || null, () => {
+        showNewDiagramModal();
+      });
+      return;
+    }
+
     if (data.nextId) nextId = data.nextId;
 
     if (data.tabs?.length > 0) {
@@ -526,6 +546,46 @@ function restoreTabs() {
       activeTabId = id;
     }
   }
+}
+
+/** Show a warning when the auto-saved session is from a different major version. */
+function showSessionVersionWarning(savedVersion, onDismiss) {
+  const overlay = document.createElement('div');
+  overlay.className = 'sf-modal';
+  overlay.style.zIndex = '10001';
+
+  const savedLabel = savedVersion || 'unknown';
+  overlay.innerHTML = `
+    <div class="sf-modal__overlay"></div>
+    <div class="sf-modal__dialog" style="width:440px">
+      <div class="sf-modal__header">
+        <h2 class="sf-modal__title">Session Reset</h2>
+      </div>
+      <div class="sf-modal__body" style="padding:16px 20px">
+        <p style="margin:0 0 12px">
+          Diagramforce has been updated from <strong>v${escHtml(savedLabel)}</strong>
+          to <strong>v${escHtml(APP_VERSION)}</strong>.
+        </p>
+        <p style="margin:0 0 12px;color:var(--text-secondary)">
+          There were significant changes introduced and your previous session could not be restored.
+          Any unsaved work in open tabs has been cleared.
+        </p>
+        <p style="margin:0;color:var(--text-secondary)">
+          Diagrams saved to Browser Storage or exported as JSON are not affected
+          and can be loaded from the Load menu.
+        </p>
+      </div>
+      <div class="sf-modal__footer" style="justify-content:flex-end">
+        <button class="sf-modal__btn sf-modal__btn--primary" data-action="ok">OK</button>
+      </div>
+    </div>`;
+
+  overlay.querySelector('[data-action="ok"]').addEventListener('click', () => {
+    overlay.remove();
+    onDismiss();
+  });
+
+  document.body.appendChild(overlay);
 }
 
 // Auto-save tabs whenever graph changes (debounced)
