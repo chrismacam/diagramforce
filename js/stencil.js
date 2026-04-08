@@ -1,9 +1,9 @@
 // Stencil panel — draggable component library
 // Organizes templates by category, supports search, handles drag-to-canvas
 
-import { TEMPLATE_CATEGORIES, BPMN_CATEGORIES, DATAMODEL_CATEGORIES, GANTT_CATEGORIES, ORG_CATEGORIES, createElementFromTemplate } from './templates.js';
-import { getAllIcons, getCategories } from './icons.js';
-import { updateSimpleNodeLayout } from './canvas.js';
+import { TEMPLATE_CATEGORIES, BPMN_CATEGORIES, DATAMODEL_CATEGORIES, GANTT_CATEGORIES, ORG_CATEGORIES, createElementFromTemplate } from './templates.js?v=1.1.0';
+import { getAllIcons, getCategories } from './icons.js?v=1.1.0';
+import { updateSimpleNodeLayout } from './canvas.js?v=1.1.0';
 
 let graph, paper;
 let panelEl, searchEl, bodyEl;
