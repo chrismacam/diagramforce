@@ -1,7 +1,7 @@
 // Tabs — multi-diagram tab management
 // Each tab holds its own graph JSON, viewport, and undo/redo history.
 
-import { escHtml, APP_VERSION, classifyVersionDiff } from './persistence.js?v=1.1.0';
+import { escHtml, APP_VERSION, classifyVersionDiff } from './persistence.js?v=1.1.1';
 
 let graph, paper, canvasModule, selectionModule, historyModule, persistenceModule, stencilModule;
 let tabListEl;
@@ -541,6 +541,7 @@ function restoreTabs() {
       showSessionVersionWarning(savedVersion, 'major').then(tryLoad => {
         if (tryLoad) {
           doRestoreTabData(data);
+          saveTabs(); // stamp current version so warning doesn't repeat
         } else {
           localStorage.removeItem(STORAGE_KEY);
           showNewDiagramModal();
@@ -556,6 +557,10 @@ function restoreTabs() {
     }
 
     doRestoreTabData(data);
+
+    if (diff !== 'none') {
+      saveTabs(); // stamp current version so warning doesn't repeat
+    }
 
   } catch (err) {
     console.warn('SF Diagrams: Tab restore failed:', err);
