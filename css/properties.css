@@ -735,12 +735,15 @@
     bottom: 0;
     width: 100%;
     height: 25vh;
+    height: 25dvh;
     max-height: 80vh;
+    max-height: 80dvh;
     border-right: none;
     border-top: 1px solid var(--border-color);
     transform: translateY(0);
     z-index: 200;
     box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .sf-properties--hidden {

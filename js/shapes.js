@@ -1647,6 +1647,8 @@ export function register() {
       model.attr('divider/y1', topH, { silent: true });
       model.attr('divider/y2', topH, { silent: true });
       // Apply to DOM immediately (silent attrs don't trigger re-render)
+      const bodyEl = this.el.querySelector('[joint-selector="body"]');
+      if (bodyEl) { bodyEl.setAttribute('height', totalHeight); bodyEl.setAttribute('width', width); }
       const topRowEl = this.el.querySelector('[joint-selector="topRow"]');
       if (topRowEl) { topRowEl.setAttribute('x', taskListWidth); topRowEl.setAttribute('width', width - taskListWidth); topRowEl.setAttribute('height', topH); }
       const dividerEl = this.el.querySelector('[joint-selector="divider"]');

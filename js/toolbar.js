@@ -12,6 +12,7 @@ export function init(_modules) {
   btn('btn-save-json').addEventListener('click', () => modules.persistence.exportJSON());
   btn('btn-save-png').addEventListener('click', () => modules.persistence.exportPNG(false));
   btn('btn-save-png-t').addEventListener('click', () => modules.persistence.exportPNG(true));
+  btn('btn-save-share').addEventListener('click', () => modules.persistence.shareAsURL());
   document.getElementById('btn-share-url').addEventListener('click', () => modules.persistence.shareAsURL());
 
   // Wire save modal callback so persistence.namedSave() can also open it

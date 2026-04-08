@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="Visual Salesforce architecture diagram editor for data models, process flows, org charts, and Gantt charts. Free, browser-based, no sign-up required.">
   <meta name="theme-color" content="#1D73C9" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#DA4E55" media="(prefers-color-scheme: dark)">
@@ -16,15 +16,15 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@joint/core@4.0.4/dist/joint.min.css" integrity="sha384-W68LL3jsbqfNeDZD23ZWpZ6cMqF7EWlc5Bp5uVXIDJAQ4IT21p8irMFyAmrunfCU" crossorigin="anonymous">
 
   <!-- App CSS (order matters) -->
-  <link rel="stylesheet" href="css/variables.css?v=1.1.1">
-  <link rel="stylesheet" href="css/theme.css?v=1.1.1">
-  <link rel="stylesheet" href="css/layout.css?v=1.1.1">
-  <link rel="stylesheet" href="css/toolbar.css?v=1.1.1">
-  <link rel="stylesheet" href="css/stencil.css?v=1.1.1">
-  <link rel="stylesheet" href="css/properties.css?v=1.1.1">
-  <link rel="stylesheet" href="css/tabs.css?v=1.1.1">
-  <link rel="stylesheet" href="css/canvas.css?v=1.1.1">
-  <link rel="stylesheet" href="css/modals.css?v=1.1.1">
+  <link rel="stylesheet" href="css/variables.css?v=1.1.2">
+  <link rel="stylesheet" href="css/theme.css?v=1.1.2">
+  <link rel="stylesheet" href="css/layout.css?v=1.1.2">
+  <link rel="stylesheet" href="css/toolbar.css?v=1.1.2">
+  <link rel="stylesheet" href="css/stencil.css?v=1.1.2">
+  <link rel="stylesheet" href="css/properties.css?v=1.1.2">
+  <link rel="stylesheet" href="css/tabs.css?v=1.1.2">
+  <link rel="stylesheet" href="css/canvas.css?v=1.1.2">
+  <link rel="stylesheet" href="css/modals.css?v=1.1.2">
 </head>
 <body>
   <!-- Hidden SLDS icon sprites (loaded by js/icons.js) -->
@@ -52,6 +52,8 @@
               <button id="btn-save-json" class="sf-toolbar__menu-item">Save to JSON</button>
               <button id="btn-save-png" class="sf-toolbar__menu-item">Save to PNG</button>
               <button id="btn-save-png-t" class="sf-toolbar__menu-item">Save to transparent PNG</button>
+              <div class="sf-toolbar__menu-separator" role="separator"></div>
+              <button id="btn-save-share" class="sf-toolbar__menu-item">Share as URL</button>
             </div>
           </div>
           <div class="sf-toolbar__dropdown">
@@ -315,6 +317,6 @@
   <!-- Scripts: JointJS as global, then app as ES module -->
   <script defer src="https://cdn.jsdelivr.net/npm/@joint/core@4.0.4/dist/joint.min.js" integrity="sha384-fNdkeEn04ykjJJcUJiNFCANrCKn6m3AJgdpkIqgUF2hbTHQMCXbxsldLijUxJEEb" crossorigin="anonymous"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js" integrity="sha384-rNlaE5fs9dGIjmxWDALQh/RBAaGRYT5ChrzHo6tRfgrZ36iRFAiquP5g41Jsv+0j" crossorigin="anonymous"></script>
-  <script type="module" src="js/app.js?v=1.1.1"></script>
+  <script type="module" src="js/app.js?v=1.1.2"></script>
 </body>
 </html>

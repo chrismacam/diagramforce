@@ -1,9 +1,9 @@
 // Stencil panel — draggable component library
 // Organizes templates by category, supports search, handles drag-to-canvas
 
-import { TEMPLATE_CATEGORIES, BPMN_CATEGORIES, DATAMODEL_CATEGORIES, GANTT_CATEGORIES, ORG_CATEGORIES, createElementFromTemplate } from './templates.js?v=1.1.1';
-import { getAllIcons, getCategories } from './icons.js?v=1.1.1';
-import { updateSimpleNodeLayout } from './canvas.js?v=1.1.1';
+import { TEMPLATE_CATEGORIES, BPMN_CATEGORIES, DATAMODEL_CATEGORIES, GANTT_CATEGORIES, ORG_CATEGORIES, createElementFromTemplate } from './templates.js?v=1.1.2';
+import { getAllIcons, getCategories } from './icons.js?v=1.1.2';
+import { updateSimpleNodeLayout } from './canvas.js?v=1.1.2';
 
 let graph, paper;
 let panelEl, searchEl, bodyEl;
@@ -216,10 +216,29 @@ function setupDropZone() {
 }
 
 function addToCenter(template) {
-  // Find the visible center of the canvas
+  // Find the visible center of the canvas, accounting for overlapping panels on mobile
   const canvasEl = document.getElementById('canvas-container');
   const rect = canvasEl.getBoundingClientRect();
-  const centerClient = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  let visibleTop = rect.top;
+  let visibleBottom = rect.bottom;
+
+  // On mobile, fixed-positioned panels overlap the canvas from the bottom
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    const stencilEl = document.querySelector('.sf-stencil:not(.sf-stencil--hidden)');
+    const propsEl = document.querySelector('.sf-properties:not(.sf-properties--hidden)');
+    // Use the highest panel top edge as the effective bottom of visible canvas
+    if (stencilEl) {
+      const sr = stencilEl.getBoundingClientRect();
+      if (sr.top < visibleBottom) visibleBottom = sr.top;
+    }
+    if (propsEl) {
+      const pr = propsEl.getBoundingClientRect();
+      if (pr.top < visibleBottom) visibleBottom = pr.top;
+    }
+  }
+
+  const centerClient = { x: rect.left + rect.width / 2, y: visibleTop + (visibleBottom - visibleTop) / 2 };
   const localCenter = paper.clientToLocalPoint(centerClient.x, centerClient.y);
   const gridSize = paper.options.gridSize || 4;
 
