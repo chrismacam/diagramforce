@@ -1039,7 +1039,8 @@ export function register() {
       },
       ports: {
         groups: {
-          ...portGroups,
+          top: portGroups.top,
+          bottom: portGroups.bottom,
           fieldLeft: {
             position: { name: 'absolute' },
             attrs: {
@@ -1067,7 +1068,10 @@ export function register() {
             markup: [{ tagName: 'circle', selector: 'circle' }],
           },
         },
-        items: portItems,
+        items: [
+          { id: 'port-top', group: 'top' },
+          { id: 'port-bottom', group: 'bottom' },
+        ],
       },
     },
     {
