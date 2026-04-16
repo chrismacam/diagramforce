@@ -1,7 +1,7 @@
 // Tabs — multi-diagram tab management
 // Each tab holds its own graph JSON, viewport, and undo/redo history.
 
-import { escHtml, APP_VERSION, classifyVersionDiff } from './persistence.js?v=1.3.1';
+import { escHtml, APP_VERSION, classifyVersionDiff } from './persistence.js?v=1.3.2';
 
 let graph, paper, canvasModule, selectionModule, historyModule, persistenceModule, stencilModule;
 let tabListEl;
@@ -47,6 +47,8 @@ export function init(_graph, _paper, _canvas, _selection, _history, _persistence
   persistenceModule.setTabViewportGetter((id) => getTabViewport(id));
   persistenceModule.setTabDiagramTypeGetter((id) => getTabDiagramType(id));
   persistenceModule.setImportHandler((name, type, graphJSON, viewport) => {
+    // Dismiss the new-diagram modal if it's open (e.g. first visit via share URL)
+    document.querySelector('.sf-new-modal')?.remove();
     const id = newTab(uniqueTabName(name), type);
     // The new tab is now active — load the graph into it
     canvasModule.setLoadingJSON(true);
