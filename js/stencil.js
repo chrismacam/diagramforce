@@ -1,9 +1,9 @@
 // Stencil panel — draggable component library
 // Organizes templates by category, supports search, handles drag-to-canvas
 
-import { TEMPLATE_CATEGORIES, BPMN_CATEGORIES, DATAMODEL_CATEGORIES, GANTT_CATEGORIES, ORG_CATEGORIES, createElementFromTemplate } from './templates.js?v=1.4.2';
-import { getAllIcons, getCategories } from './icons.js?v=1.4.2';
-import { updateSimpleNodeLayout } from './canvas.js?v=1.4.2';
+import { TEMPLATE_CATEGORIES, BPMN_CATEGORIES, DATAMODEL_CATEGORIES, GANTT_CATEGORIES, ORG_CATEGORIES, createElementFromTemplate } from './templates.js?v=1.5.0';
+import { getAllIcons, getCategories } from './icons.js?v=1.5.0';
+import { updateSimpleNodeLayout } from './canvas.js?v=1.5.0';
 
 let graph, paper;
 let panelEl, searchEl, bodyEl;
@@ -356,15 +356,17 @@ function tryEmbed(element) {
   }
 }
 
-/** Copy display flags (showLabels, showFieldLengths) from existing DataObjects to a new one */
+/** Copy display flags (showLabels, showFieldLengths, keyFieldsOnly) from existing DataObjects to a new one */
 function applyDisplayFlags(element) {
   if (element.get('type') !== 'sf.DataObject') return;
   const existing = graph.getElements().find(el => el.get('type') === 'sf.DataObject');
   if (!existing) return;
   const showLabels = existing.get('showLabels');
   const showFieldLengths = existing.get('showFieldLengths');
+  const keyFieldsOnly = existing.get('keyFieldsOnly');
   if (showLabels != null) element.set('showLabels', showLabels);
   if (showFieldLengths != null) element.set('showFieldLengths', showFieldLengths);
+  if (keyFieldsOnly != null) element.set('keyFieldsOnly', keyFieldsOnly);
 }
 
 function filterStencil(query) {

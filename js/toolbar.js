@@ -40,6 +40,7 @@ export function init(_modules) {
   setupDropdown('btn-display');
   const btnApi = document.getElementById('btn-display-api');
   const btnLen = document.getElementById('btn-display-lengths');
+  const btnKeysOnly = document.getElementById('btn-display-keys-only');
   btnApi.addEventListener('click', () => {
     const current = isDisplayFlagOn('showLabels');
     applyDisplayFlagToAll('showLabels', !current);
@@ -48,6 +49,11 @@ export function init(_modules) {
   btnLen.addEventListener('click', () => {
     const current = isDisplayFlagOn('showFieldLengths');
     applyDisplayFlagToAll('showFieldLengths', !current);
+    updateDisplayToggleLabels();
+  });
+  btnKeysOnly.addEventListener('click', () => {
+    const current = isDisplayFlagOn('keyFieldsOnly');
+    applyDisplayFlagToAll('keyFieldsOnly', !current);
     updateDisplayToggleLabels();
   });
 
@@ -683,9 +689,11 @@ function updateDisplayMenuVisibility() {
   // Show data-model-specific options only for datamodel tabs
   const apiBtn = document.getElementById('btn-display-api');
   const lenBtn = document.getElementById('btn-display-lengths');
+  const keysBtn = document.getElementById('btn-display-keys-only');
   const dmSep = document.getElementById('display-dm-separator');
   if (apiBtn) apiBtn.style.display = isDataModel ? '' : 'none';
   if (lenBtn) lenBtn.style.display = isDataModel ? '' : 'none';
+  if (keysBtn) keysBtn.style.display = isDataModel ? '' : 'none';
   if (dmSep) dmSep.style.display = isDataModel ? '' : 'none';
 
   // Show animate connectors for architecture, process, datamodel
@@ -718,10 +726,13 @@ function updateDisplayMenuVisibility() {
 function updateDisplayToggleLabels() {
   const labelsOn = isDisplayFlagOn('showLabels');
   const lenOn = isDisplayFlagOn('showFieldLengths');
+  const keysOnly = isDisplayFlagOn('keyFieldsOnly');
   const apiBtn = document.getElementById('btn-display-api');
   const lenBtn = document.getElementById('btn-display-lengths');
+  const keysBtn = document.getElementById('btn-display-keys-only');
   if (apiBtn) apiBtn.textContent = labelsOn ? 'Hide Labels' : 'Show Labels';
   if (lenBtn) lenBtn.textContent = lenOn ? 'Hide Field Lengths' : 'Show Field Lengths';
+  if (keysBtn) keysBtn.textContent = keysOnly ? 'Show All Fields' : 'Show Key Fields Only';
 }
 
 function updateGanttToggleLabels() {

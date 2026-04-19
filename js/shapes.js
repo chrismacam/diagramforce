@@ -1119,8 +1119,9 @@ export function register() {
   joint.shapes.sf.DataObjectView = joint.dia.ElementView.extend({
     initialize() {
       joint.dia.ElementView.prototype.initialize.apply(this, arguments);
-      this.listenTo(this.model, 'change:fields change:showLabels change:showFieldLengths', () => this._renderFieldRows());
-      this.listenTo(this.model, 'change:fields', () => this._syncFieldPorts());
+      this.listenTo(this.model, 'change:fields change:showLabels change:showFieldLengths change:keyFieldsOnly', () => this._renderFieldRows());
+      this.listenTo(this.model, 'change:fields change:keyFieldsOnly', () => this._syncFieldPorts());
+      this.listenTo(this.model, 'change:keyFieldsOnly', () => this._autoResize());
     },
     update() {
       joint.dia.ElementView.prototype.update.apply(this, arguments);
@@ -1128,9 +1129,21 @@ export function register() {
       this._syncFieldPorts();
     },
 
+    _autoResize() {
+      const model = this.model;
+      const fields = model.get('fields') || [];
+      const keyFieldsOnly = model.get('keyFieldsOnly');
+      const visibleCount = keyFieldsOnly ? fields.filter(f => f.keyType).length : fields.length;
+      const HEADER_H = 32;
+      const ROW_H = 22;
+      const height = HEADER_H + Math.max(visibleCount, 1) * ROW_H + 4;
+      model.resize(model.size().width, height);
+    },
+
     _syncFieldPorts() {
       const model = this.model;
       const fields = model.get('fields') || [];
+      const keyFieldsOnly = model.get('keyFieldsOnly');
       const { width } = model.size();
       const HEADER_H = 32;
       const ROW_H = 22;
@@ -1141,23 +1154,30 @@ export function register() {
       );
       const existingIds = new Set(existingPorts.map(p => p.id));
 
-      // Build desired field ports for PK/FK fields
+      // Build desired field ports for PK/FK fields.
+      // Port y-position uses the visible row index (filtered when keyFieldsOnly is on);
+      // port IDs remain tied to the original field index for stable link endpoints.
       const desired = [];
+      let visibleIdx = 0;
       fields.forEach((field, i) => {
-        if (!field.keyType) return;
-        const y = HEADER_H + i * ROW_H + ROW_H / 2;
-        const leftId = `field-left-${i}`;
-        const rightId = `field-right-${i}`;
-        desired.push({
-          id: leftId, group: 'fieldLeft',
-          args: { x: 0, y },
-          attrs: { circle: { fill: field.keyType === 'pk' ? '#F6B355' : '#1D73C9' } },
-        });
-        desired.push({
-          id: rightId, group: 'fieldRight',
-          args: { x: width, y },
-          attrs: { circle: { fill: field.keyType === 'pk' ? '#F6B355' : '#1D73C9' } },
-        });
+        const isVisible = !keyFieldsOnly || field.keyType;
+        if (!isVisible) return;
+        if (field.keyType) {
+          const y = HEADER_H + visibleIdx * ROW_H + ROW_H / 2;
+          const leftId = `field-left-${i}`;
+          const rightId = `field-right-${i}`;
+          desired.push({
+            id: leftId, group: 'fieldLeft',
+            args: { x: 0, y },
+            attrs: { circle: { fill: field.keyType === 'pk' ? '#F6B355' : '#1D73C9' } },
+          });
+          desired.push({
+            id: rightId, group: 'fieldRight',
+            args: { x: width, y },
+            attrs: { circle: { fill: field.keyType === 'pk' ? '#F6B355' : '#1D73C9' } },
+          });
+        }
+        visibleIdx++;
       });
 
       const desiredIds = new Set(desired.map(p => p.id));
@@ -1179,7 +1199,9 @@ export function register() {
 
     _renderFieldRows() {
       const model = this.model;
-      const fields = model.get('fields') || [];
+      const allFields = model.get('fields') || [];
+      const keyFieldsOnly = model.get('keyFieldsOnly');
+      const fields = keyFieldsOnly ? allFields.filter(f => f.keyType) : allFields;
       const { width, height } = model.size();
       const HEADER_H = 32;
       const ROW_H = 22;

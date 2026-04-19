@@ -467,6 +467,7 @@ Database table / Salesforce object with coloured header and dynamic field rows. 
   ],
   "showLabels": false,
   "showFieldLengths": false,
+  "keyFieldsOnly": false,
   "attrs": {
     "body": {
       "width": "calc(w)", "height": "calc(h)",
@@ -515,6 +516,14 @@ Database table / Salesforce object with coloured header and dynamic field rows. 
 | `length` | number / null | Field length (shown if `showFieldLengths` is true) |
 | `required` | boolean | Shows asterisk if true |
 | `decommissioned` | boolean | Strikes through the field if true |
+
+**Display flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `showLabels` | `false` | Show the human-readable `label` alongside `apiName` in each row |
+| `showFieldLengths` | `false` | Show `(length)` suffix next to the type |
+| `keyFieldsOnly` | `false` | When `true`, only fields with `keyType` (PK/FK) are rendered; the object height shrinks to fit |
 
 **Sizing rule:** Set height to `32 + (fields.length * 24)`. The custom view auto-renders field rows.
 
@@ -1081,6 +1090,7 @@ Two related Salesforce objects with ER notation:
         ],
         "showLabels": false,
         "showFieldLengths": false,
+        "keyFieldsOnly": false,
         "attrs": {
           "body": { "width": "calc(w)", "height": "calc(h)", "rx": 4, "ry": 4, "fill": "var(--node-bg)", "stroke": "var(--node-border)", "strokeWidth": 1 },
           "header": { "width": "calc(w)", "height": 32, "rx": 4, "ry": 4, "fill": "#1D73C9", "stroke": "none" },
@@ -1115,6 +1125,7 @@ Two related Salesforce objects with ER notation:
         ],
         "showLabels": false,
         "showFieldLengths": false,
+        "keyFieldsOnly": false,
         "attrs": {
           "body": { "width": "calc(w)", "height": "calc(h)", "rx": 4, "ry": 4, "fill": "var(--node-bg)", "stroke": "var(--node-border)", "strokeWidth": 1 },
           "header": { "width": "calc(w)", "height": 32, "rx": 4, "ry": 4, "fill": "#7F2B82", "stroke": "none" },

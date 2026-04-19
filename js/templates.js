@@ -1,7 +1,7 @@
 // Pre-built Salesforce architecture templates
 // Each template is a config object describing a diagram element
 
-import { getIconDataUri } from './icons.js?v=1.4.2';
+import { getIconDataUri } from './icons.js?v=1.5.0';
 
 /** Convert inline stencilSvg markup to a data URI for use as a canvas icon.
  *  Each child element must carry its own fill/stroke — the wrapper SVG sets NO
@@ -871,9 +871,11 @@ export const DATAMODEL_CATEGORIES = [
 // Helper: resize a DataObject element to fit its fields
 export function resizeDataObjectToFit(cell) {
   const fields = cell.get('fields') || [];
+  const keyFieldsOnly = cell.get('keyFieldsOnly');
+  const visible = keyFieldsOnly ? fields.filter(f => f.keyType) : fields;
   const HEADER_H = 32;
   const ROW_H = 22;
-  const height = HEADER_H + Math.max(fields.length, 1) * ROW_H + 4;
+  const height = HEADER_H + Math.max(visible.length, 1) * ROW_H + 4;
   cell.resize(cell.size().width, height);
 }
 
