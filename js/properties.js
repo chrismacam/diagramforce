@@ -13,6 +13,22 @@ import {
   countExternalConnectors,
   countExternalConnectedConnectors,
 } from './clipboard.js?v=1.5.2';
+import * as history from './history.js?v=1.5.2';
+
+/**
+ * Wrap a callback so every mutation inside it (potentially many
+ * `cell.attr()` calls across one or more elements) is collapsed into a
+ * SINGLE undo command. Without this, picking a colour on a SimpleNode
+ * would push 4 separate commands (body/fill, label/fill, subtitle/fill,
+ * subtitle/opacity) and Cmd+Z would only revert the last one.
+ */
+function asUndoBatch(fn) {
+  return (...args) => {
+    history.startBatch();
+    try { fn(...args); }
+    finally { history.endBatch(); }
+  };
+}
 
 /** Resolve a color value — if it's a CSS var(), compute the actual color; otherwise return as-is. */
 function resolveColor(color) {
@@ -2779,6 +2795,11 @@ function addTextarea(parent, label, value, onChange) {
 }
 
 function addColor(parent, label, value, onChange) {
+  // Group every attr mutation the setter performs into one undo entry
+  // (a SimpleNode Fill pick touches body/fill + label/fill + subtitle/fill
+  // + subtitle/opacity — without batching, Cmd+Z would only revert one).
+  const batched = asUndoBatch(onChange);
+
   const f = field(parent, label);
   const row = document.createElement('div');
   row.className = 'sf-prop-color-row';
@@ -2798,13 +2819,13 @@ function addColor(parent, label, value, onChange) {
 
   swatch.addEventListener('input', () => {
     textInput.value = swatch.value;
-    onChange(swatch.value);
+    batched(swatch.value);
   });
   textInput.addEventListener('change', () => {
     const h = toHex(textInput.value);
     swatch.value = h;
     textInput.value = h;
-    onChange(h);
+    batched(h);
   });
 
   row.appendChild(swatch);
@@ -2819,6 +2840,11 @@ function addColor(parent, label, value, onChange) {
  * via swatch or by typing a hex) applies it to every selected element.
  */
 function addColorMulti(parent, label, value, onChange) {
+  // Multi-select applies the colour to every selected element × every attr
+  // in that element's setter → potentially dozens of change:attrs events.
+  // Batch them so a single pick is one undo command.
+  const batched = asUndoBatch(onChange);
+
   const f = field(parent, label);
   const row = document.createElement('div');
   row.className = 'sf-prop-color-row';
@@ -2846,14 +2872,14 @@ function addColorMulti(parent, label, value, onChange) {
   swatch.addEventListener('input', () => {
     clearMixed();
     textInput.value = swatch.value;
-    onChange(swatch.value);
+    batched(swatch.value);
   });
   textInput.addEventListener('change', () => {
     const h = toHex(textInput.value);
     clearMixed();
     swatch.value = h;
     textInput.value = h;
-    onChange(h);
+    batched(h);
   });
 
   row.appendChild(swatch);
