@@ -1,9 +1,9 @@
 // Properties panel — left sidebar element inspector
 // Properties are grouped into collapsible accordion sections
 
-import { getAllIcons, getIconDataUri } from './icons.js?v=1.5.1';
-import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout, syncMobilePanelHeight } from './canvas.js?v=1.5.1';
-import { resizeDataObjectToFit, contrastTextColor } from './templates.js?v=1.5.1';
+import { getAllIcons, getIconDataUri } from './icons.js?v=1.5.2';
+import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout, syncMobilePanelHeight } from './canvas.js?v=1.5.2';
+import { resizeDataObjectToFit, contrastTextColor } from './templates.js?v=1.5.2';
 import {
   duplicate as clipboardDuplicate,
   cloneElementWithConnectors,
@@ -12,7 +12,7 @@ import {
   cloneSelectionWithMode,
   countExternalConnectors,
   countExternalConnectedConnectors,
-} from './clipboard.js?v=1.5.1';
+} from './clipboard.js?v=1.5.2';
 
 /** Resolve a color value — if it's a CSS var(), compute the actual color; otherwise return as-is. */
 function resolveColor(color) {
@@ -90,6 +90,180 @@ const DEFAULT_SIZES = {
   'sf.GanttGroup':     { width: 360, height: 24 },
   'sf.OrgPerson':      { width: 280, height: 90 },
 };
+
+// Per-type color field schema used by the multi-select Colors section.
+// Each entry lists the color "slots" the type exposes in its single-element
+// panel; multi-select intersects these by label so only colors that ALL
+// selected types support are shown. Getters return the current value (or
+// a type default); setters apply the same side-effects as the single-
+// element renderer (e.g. SimpleNode Fill also updates text contrast).
+const COLOR_SCHEMA = {
+  'sf.SimpleNode': [
+    { label: 'Fill',
+      get: c => c.attr('body/fill'),
+      set: (c, v) => {
+        c.attr('body/fill', v);
+        const tc = contrastTextColor(v);
+        if (tc) {
+          c.attr('label/fill', tc);
+          c.attr('subtitle/fill', tc);
+          c.attr('subtitle/opacity', 0.7);
+        }
+      } },
+    { label: 'Border',
+      get: c => c.attr('body/stroke'),
+      set: (c, v) => c.attr('body/stroke', v) },
+    { label: 'Label & Icon color',
+      get: c => c.attr('label/fill'),
+      set: (c, v) => { c.attr('label/fill', v); c.attr('subtitle/fill', v); } },
+  ],
+  'sf.Container': [
+    { label: 'Accent',
+      get: c => c.attr('accent/fill'),
+      set: (c, v) => { c.attr('accent/fill', v); c.attr('accentFill/fill', v); } },
+    { label: 'Fill',
+      get: c => c.attr('body/fill'),
+      set: (c, v) => c.attr('body/fill', v) },
+    { label: 'Border',
+      get: c => c.attr('body/stroke'),
+      set: (c, v) => c.attr('body/stroke', v) },
+    { label: 'Label & Icon color',
+      get: c => c.attr('headerLabel/fill'),
+      set: (c, v) => c.attr('headerLabel/fill', v) },
+  ],
+  'sf.TextLabel': [
+    { label: 'Color',
+      get: c => c.attr('label/fill'),
+      set: (c, v) => c.attr('label/fill', v) },
+  ],
+  'sf.Zone': [
+    { label: 'Fill',
+      get: c => c.attr('body/fill'),
+      set: (c, v) => c.attr('body/fill', v) },
+    { label: 'Border',
+      get: c => c.attr('body/stroke'),
+      set: (c, v) => c.attr('body/stroke', v) },
+  ],
+  'sf.Note': [
+    { label: 'Fill',
+      get: c => c.attr('body/fill'),
+      set: (c, v) => c.attr('body/fill', v) },
+    { label: 'Border',
+      get: c => c.attr('body/stroke'),
+      set: (c, v) => c.attr('body/stroke', v) },
+  ],
+  'sf.Line': [
+    { label: 'Color',
+      get: c => c.attr('line/stroke'),
+      set: (c, v) => c.attr('line/stroke', v) },
+  ],
+  'sf.Annotation': [
+    { label: 'Bracket color',
+      get: c => c.attr('bracket/stroke'),
+      set: (c, v) => c.attr('bracket/stroke', v) },
+    { label: 'Text color',
+      get: c => c.attr('label/fill'),
+      set: (c, v) => c.attr('label/fill', v) },
+  ],
+  'sf.DataObject': [
+    { label: 'Header Color',
+      get: c => c.get('headerColor') || '#1D73C9',
+      set: (c, v) => {
+        c.set('headerColor', v);
+        c.attr('header/fill', v);
+        c.attr('headerCover/fill', v);
+      } },
+  ],
+  'sf.OrgPerson': [
+    { label: 'Accent Color',
+      get: c => c.attr('accentBar/fill') || '#1D73C9',
+      set: (c, v) => { c.attr('accentBar/fill', v); c.attr('accentBarMask/fill', v); } },
+  ],
+  'sf.GanttTask': [
+    { label: 'Completion Bar',
+      get: c => c.attr('progressBar/fill') || '#1D73C9',
+      set: (c, v) => c.attr('progressBar/fill', v) },
+    { label: 'Text',
+      get: c => c.get('userTextColor') || c.attr('label/fill') || '#FFFFFF',
+      set: (c, v) => { c.set('userTextColor', v); c.attr('label/fill', v); } },
+    { label: 'Background',
+      get: c => c.attr('body/fill'),
+      set: (c, v) => c.attr('body/fill', v) },
+    { label: 'Border',
+      get: c => c.attr('body/stroke'),
+      set: (c, v) => c.attr('body/stroke', v) },
+  ],
+  'sf.GanttMilestone': [
+    { label: 'Fill',
+      get: c => c.attr('body/fill') || '#F6B355',
+      set: (c, v) => c.attr('body/fill', v) },
+    { label: 'Border',
+      get: c => c.attr('body/stroke') || '#D4942A',
+      set: (c, v) => c.attr('body/stroke', v) },
+    { label: 'Label color',
+      get: c => c.attr('label/fill'),
+      set: (c, v) => c.attr('label/fill', v) },
+  ],
+  'sf.GanttMarker': [
+    { label: 'Fill',
+      get: c => c.attr('body/fill') || '#DA4E55',
+      set: (c, v) => c.attr('body/fill', v) },
+    { label: 'Border',
+      get: c => c.attr('body/stroke') || '#B03A40',
+      set: (c, v) => c.attr('body/stroke', v) },
+    { label: 'Label color',
+      get: c => c.attr('label/fill'),
+      set: (c, v) => c.attr('label/fill', v) },
+  ],
+  'sf.GanttTimeline': [
+    { label: 'Background',
+      get: c => c.attr('body/fill'),
+      set: (c, v) => c.attr('body/fill', v) },
+    { label: 'Top Row',
+      get: c => c.attr('topRow/fill'),
+      set: (c, v) => c.attr('topRow/fill', v) },
+    { label: 'Border',
+      get: c => c.attr('body/stroke'),
+      set: (c, v) => c.attr('body/stroke', v) },
+  ],
+  'sf.GanttGroup': [
+    { label: 'Bar Color',
+      get: c => c.attr('body/fill'),
+      set: (c, v) => c.attr('body/fill', v) },
+    { label: 'Label color',
+      get: c => c.attr('label/fill'),
+      set: (c, v) => c.attr('label/fill', v) },
+  ],
+};
+
+// Default schema for BPMN / Flow shapes — Fill, Border, Label color.
+const BASIC_COLOR_SCHEMA = [
+  { label: 'Fill',
+    get: c => c.attr('body/fill'),
+    set: (c, v) => c.attr('body/fill', v) },
+  { label: 'Border',
+    get: c => c.attr('body/stroke'),
+    set: (c, v) => c.attr('body/stroke', v) },
+  { label: 'Label color',
+    get: c => c.attr('label/fill'),
+    set: (c, v) => c.attr('label/fill', v) },
+];
+
+// Shapes that share the basic (Fill / Border / Label color) schema.
+[
+  'sf.BpmnEvent', 'sf.BpmnTask', 'sf.BpmnGateway', 'sf.BpmnSubprocess',
+  'sf.BpmnLoop', 'sf.BpmnDataObject',
+  'sf.FlowProcess', 'sf.FlowDecision', 'sf.FlowTerminator', 'sf.FlowDatabase',
+  'sf.FlowDocument', 'sf.FlowIO', 'sf.FlowPredefined', 'sf.FlowOffPage',
+].forEach(t => { if (!COLOR_SCHEMA[t]) COLOR_SCHEMA[t] = BASIC_COLOR_SCHEMA; });
+
+// Pool has an extra "Header fill".
+COLOR_SCHEMA['sf.BpmnPool'] = [
+  ...BASIC_COLOR_SCHEMA,
+  { label: 'Header fill',
+    get: c => c.attr('header/fill'),
+    set: (c, v) => c.attr('header/fill', v) },
+];
 
 let graph, paper, selection;
 let panelEl, typeBadgeEl, titleEl, bodyEl, footerEl;
@@ -333,56 +507,35 @@ function showMultiProperties(count) {
     return;
   }
 
-  // ── Colors section (always shown) ──
-  const colorSec = section(bodyEl, 'Colors');
+  // ── Colors section — only shown when the selected types have at least
+  // one shared color slot. We intersect each type's schema by label so we
+  // never offer a color field that doesn't actually apply to every
+  // selected element.
+  const perTypeSchemas = elements.map(c => COLOR_SCHEMA[c.get('type')] || []);
+  const sharedLabels = perTypeSchemas.length === 0 ? [] :
+    perTypeSchemas[0]
+      .map(e => e.label)
+      .filter(label => perTypeSchemas.every(schema => schema.some(e => e.label === label)));
 
-  // Detect fill color: try body/fill, then accent/fill for containers
-  function getFill(c) {
-    return c.attr('body/fill') || c.attr('accent/fill') || c.attr('header/fill') || null;
-  }
-  function setFill(c, v) {
-    const type = c.get('type');
-    if (type === 'sf.Container') {
-      c.attr('accent/fill', v);
-    } else if (type === 'sf.DataObject') {
-      c.attr('header/fill', v); c.attr('headerCover/fill', v);
-    } else {
-      c.attr('body/fill', v);
-    }
-    // Update text contrast for SimpleNode
-    if (type === 'sf.SimpleNode') {
-      const tc = contrastTextColor(v);
-      if (tc) {
-        c.attr('label/fill', tc);
-        c.attr('subtitle/fill', tc);
-        c.attr('subtitle/opacity', 0.7);
-      }
-    }
-  }
-
-  const fills = elements.map(getFill).filter(Boolean);
-  const allSameFill = fills.length > 0 && fills.every(f => f === fills[0]);
-  addColor(colorSec, 'Fill', allSameFill ? fills[0] : '#888888', v => {
-    elements.forEach(c => setFill(c, v));
-  });
-
-  // Border color
-  const borders = elements.map(c => c.attr('body/stroke')).filter(Boolean);
-  const allSameBorder = borders.length > 0 && borders.every(b => b === borders[0]);
-  addColor(colorSec, 'Border', allSameBorder ? borders[0] : '#888888', v => {
-    elements.forEach(c => c.attr('body/stroke', v));
-  });
-
-  // Label color
-  const labelFills = elements.map(c => c.attr('label/fill') || c.attr('headerLabel/fill')).filter(Boolean);
-  const allSameLabel = labelFills.length > 0 && labelFills.every(l => l === labelFills[0]);
-  addColor(colorSec, 'Label color', allSameLabel ? labelFills[0] : '#888888', v => {
-    elements.forEach(c => {
-      const type = c.get('type');
-      if (type === 'sf.Container') c.attr('headerLabel/fill', v);
-      else c.attr('label/fill', v);
+  if (sharedLabels.length > 0) {
+    const colorSec = section(bodyEl, 'Colors');
+    sharedLabels.forEach(label => {
+      // Collect current value + per-element setter for this label
+      const entries = elements.map(c => {
+        const schema = COLOR_SCHEMA[c.get('type')] || [];
+        return { cell: c, entry: schema.find(e => e.label === label) };
+      });
+      const values = entries
+        .map(({ cell, entry }) => entry?.get(cell))
+        .filter(v => v != null && v !== '');
+      const allSame = values.length === entries.length &&
+        values.every(v => v === values[0]);
+      addColorMulti(colorSec, label,
+        allSame ? values[0] : null,
+        v => entries.forEach(({ cell, entry }) => entry?.set(cell, v))
+      );
     });
-  });
+  }
 
   // ── Size section ──
   const types = new Set(elements.map(c => c.get('type')));
@@ -396,13 +549,15 @@ function showMultiProperties(count) {
     'Height', allSameH ? heights[0] : '', h => elements.forEach(c => c.resize(c.size().width, h))
   );
 
-  // ── Shared appearance (corner radius) ──
-  const nodesWithRadius = elements.filter(c => c.get('type') === 'sf.SimpleNode');
-  if (nodesWithRadius.length > 0) {
-    const radii = nodesWithRadius.map(c => c.attr('body/rx') ?? 8);
+  // ── Shared appearance (corner radius) — only for SimpleNodes ──
+  // Only makes sense when EVERY selected element is a SimpleNode; otherwise
+  // applying a corner radius to mixed types would be meaningless.
+  if (elements.length > 0 && elements.every(c => c.get('type') === 'sf.SimpleNode')) {
+    const appearanceSec = section(bodyEl, 'Appearance');
+    const radii = elements.map(c => c.attr('body/rx') ?? 8);
     const allSameR = radii.every(r => r === radii[0]);
-    addNumber(colorSec, 'Corner radius', allSameR ? radii[0] : 8, v => {
-      nodesWithRadius.forEach(c => { c.attr('body/rx', v); c.attr('body/ry', v); });
+    addNumber(appearanceSec, 'Corner radius', allSameR ? radii[0] : 8, v => {
+      elements.forEach(c => { c.attr('body/rx', v); c.attr('body/ry', v); });
     });
   }
 
@@ -2647,6 +2802,55 @@ function addColor(parent, label, value, onChange) {
   });
   textInput.addEventListener('change', () => {
     const h = toHex(textInput.value);
+    swatch.value = h;
+    textInput.value = h;
+    onChange(h);
+  });
+
+  row.appendChild(swatch);
+  row.appendChild(textInput);
+  f.appendChild(row);
+}
+
+/**
+ * Multi-select color field: when `value` is null the swatch stays muted
+ * and the text input shows a "Multiple" placeholder so the user can see
+ * the selected elements disagree on this colour. Picking a colour (either
+ * via swatch or by typing a hex) applies it to every selected element.
+ */
+function addColorMulti(parent, label, value, onChange) {
+  const f = field(parent, label);
+  const row = document.createElement('div');
+  row.className = 'sf-prop-color-row';
+
+  const mixed = value == null;
+  const hex = mixed ? '#000000' : toHex(value);
+
+  const swatch = document.createElement('input');
+  swatch.type = 'color';
+  swatch.className = 'sf-properties__color';
+  swatch.value = hex;
+  if (mixed) swatch.classList.add('sf-properties__color--mixed');
+
+  const textInput = document.createElement('input');
+  textInput.type = 'text';
+  textInput.className = 'sf-properties__input';
+  textInput.value = mixed ? '' : hex;
+  if (mixed) textInput.placeholder = 'Multiple';
+
+  const clearMixed = () => {
+    swatch.classList.remove('sf-properties__color--mixed');
+    textInput.placeholder = '';
+  };
+
+  swatch.addEventListener('input', () => {
+    clearMixed();
+    textInput.value = swatch.value;
+    onChange(swatch.value);
+  });
+  textInput.addEventListener('change', () => {
+    const h = toHex(textInput.value);
+    clearMixed();
     swatch.value = h;
     textInput.value = h;
     onChange(h);

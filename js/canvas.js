@@ -903,10 +903,27 @@ export function migrateLinks() {
     }
 
     // Migrate old arrow markers to native JointJS convention
+    //
+    // Skip migration for paths already in the current canonical form —
+    // the old-format heuristics (especially hasCrowFoot) can misidentify
+    // canonical paths that happen to share substring patterns (e.g. the
+    // canonical "one" path contains both `L 0 0` and `L -12 8`, which
+    // would otherwise be re-written to "many" on every load).
+    const CANONICAL_MARKER_PATHS = new Set([
+      'M 0 0 L -12 0',
+      'M 0 -6 L -14 0 L 0 6 z',
+      'M -12 -8 L -12 8 M -12 0 L 0 0',
+      'M 2 0 a 5 5 0 1 1 -10 0 a 5 5 0 1 1 10 0 Z M -8 0 L -12 0 M -12 -8 L -12 8',
+      'M -12 -8 L 0 0 L -12 8 M 0 0 L -12 0',
+      'M -12 -8 L 0 0 L -12 8 M 0 0 L -12 0 M 3 -8 L 3 8',
+      'M 4 0 a 5 5 0 1 1 10 0 a 5 5 0 1 1 -10 0 Z M -12 -8 L 0 0 M 0 0 L -12 8 M 0 0 L -12 0',
+    ]);
+
     for (const key of ['sourceMarker', 'targetMarker']) {
       const m = link.attr(`line/${key}`);
       if (!m?.d) continue;
       const d = m.d;
+      if (CANONICAL_MARKER_PATHS.has(d)) continue; // already up to date
       // Old arrow: M 14 -6 0 0 14 6 z → new: M 0 -6 L -14 0 L 0 6 z
       if (d.includes('14 -6') && d.includes('z')) {
         link.attr(`line/${key}`, { type: 'path', d: 'M 0 -6 L -14 0 L 0 6 z' });
