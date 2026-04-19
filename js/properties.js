@@ -1,10 +1,18 @@
 // Properties panel — left sidebar element inspector
 // Properties are grouped into collapsible accordion sections
 
-import { getAllIcons, getIconDataUri } from './icons.js?v=1.5.0';
-import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout, syncMobilePanelHeight } from './canvas.js?v=1.5.0';
-import { resizeDataObjectToFit, contrastTextColor } from './templates.js?v=1.5.0';
-import { duplicate as clipboardDuplicate } from './clipboard.js?v=1.5.0';
+import { getAllIcons, getIconDataUri } from './icons.js?v=1.5.1';
+import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout, syncMobilePanelHeight } from './canvas.js?v=1.5.1';
+import { resizeDataObjectToFit, contrastTextColor } from './templates.js?v=1.5.1';
+import {
+  duplicate as clipboardDuplicate,
+  cloneElementWithConnectors,
+  countConnectors,
+  countConnectedConnectors,
+  cloneSelectionWithMode,
+  countExternalConnectors,
+  countExternalConnectedConnectors,
+} from './clipboard.js?v=1.5.1';
 
 /** Resolve a color value — if it's a CSS var(), compute the actual color; otherwise return as-is. */
 function resolveColor(color) {
@@ -459,17 +467,35 @@ function showMultiProperties(count) {
   const allNodes = elements.every(c => c.get('type') === 'sf.SimpleNode');
   const allContainers = elements.every(c => c.get('type') === 'sf.Container');
 
-  // Clone button (duplicates selection with connectors, like Cmd+D)
+  // Clone strip — primary "Clone" + optional connector-aware sub-buttons,
+  // matching the single-element panel.
   const cloneWrap = document.createElement('div');
   cloneWrap.className = 'sf-clone-strip';
-  const cloneBtn = document.createElement('button');
-  cloneBtn.className = 'sf-properties__btn sf-properties__btn--clone';
-  cloneBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="5" y="5" width="9" height="9" rx="2"/>
-    <path d="M3 11H2.5A1.5 1.5 0 011 9.5V2.5A1.5 1.5 0 012.5 1h7A1.5 1.5 0 0111 2.5V3"/>
-  </svg> Clone`;
-  cloneBtn.addEventListener('click', () => { clipboardDuplicate(); });
-  cloneWrap.appendChild(cloneBtn);
+
+  const primaryClone = document.createElement('button');
+  primaryClone.className = 'sf-properties__btn sf-properties__btn--clone';
+  primaryClone.innerHTML = `${CLONE_ICON_SVG} Clone`;
+  primaryClone.addEventListener('click', () => { clipboardDuplicate(); });
+  cloneWrap.appendChild(primaryClone);
+
+  const externalCount = countExternalConnectors(elements);
+  const externalConnectedCount = countExternalConnectedConnectors(elements);
+
+  const addMultiCloneSub = (label, mode) => {
+    const sub = document.createElement('button');
+    sub.className = 'sf-properties__btn sf-properties__btn--clone sf-properties__btn--clone-sub';
+    sub.innerHTML = `${CLONE_ICON_SVG} Clone ${label}`;
+    sub.addEventListener('click', () => cloneSelectionWithMode(mode));
+    cloneWrap.appendChild(sub);
+  };
+
+  if (externalCount > 0) {
+    addMultiCloneSub('with Connectors', 'dangling');
+  }
+  if (externalConnectedCount > 0) {
+    addMultiCloneSub('with connected Connectors', 'connected');
+  }
+
   footerEl.appendChild(cloneWrap);
 
   // Select All {type} — if selection is a single type, and NOT all of that type are already selected
@@ -2324,26 +2350,66 @@ function addConvertBtn(parent, label, onClick) {
 
 // ── Clone button ────────────────────────────────────────────────────
 
-function addCloneBtn(parent, cell) {
-  const wrap = document.createElement('div');
-  wrap.className = 'sf-clone-strip';
-  const btn = document.createElement('button');
-  btn.className = 'sf-properties__btn sf-properties__btn--clone';
-  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+const CLONE_ICON_SVG = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <rect x="5" y="5" width="9" height="9" rx="2"/>
     <path d="M3 11H2.5A1.5 1.5 0 011 9.5V2.5A1.5 1.5 0 012.5 1h7A1.5 1.5 0 0111 2.5V3"/>
-  </svg> Clone`;
-  btn.addEventListener('click', () => {
-    const clone = cell.clone();
+  </svg>`;
+
+/** Default clone behavior for a single cell: place a copy beside the original. */
+function cloneCellPlain(cell) {
+  const clone = cell.clone();
+  if (cell.isElement()) {
     const pos = cell.position();
     const size = cell.size();
     clone.position(pos.x + size.width + 16, pos.y);
     clone.unset('parent');
     clone.unset('embeds');
-    graph.addCell(clone);
-    selection.selectOnly(clone.id);
-  });
-  wrap.appendChild(btn);
+  } else if (cell.isLink()) {
+    // Offset vertices so the cloned link traces a parallel path
+    const verts = clone.get('vertices');
+    if (verts) clone.set('vertices', verts.map(v => ({ x: v.x + 24, y: v.y + 24 })));
+  }
+  graph.addCell(clone);
+  selection.selectOnly(clone.id);
+}
+
+function addCloneBtn(parent, cell) {
+  const wrap = document.createElement('div');
+  wrap.className = 'sf-clone-strip';
+
+  // Always show a primary "Clone" button (plain duplicate — element only,
+  // or parallel connector for links).
+  const primary = document.createElement('button');
+  primary.className = 'sf-properties__btn sf-properties__btn--clone';
+  primary.innerHTML = `${CLONE_ICON_SVG} Clone`;
+  primary.addEventListener('click', () => cloneCellPlain(cell));
+  wrap.appendChild(primary);
+
+  // For elements with attached connectors, surface the connector-aware
+  // clone modes as stacked sub-buttons under the primary action.
+  if (cell.isElement?.()) {
+    const connectorCount = countConnectors(cell);
+    const connectedCount = countConnectedConnectors(cell);
+
+    const addSubBtn = (label, mode) => {
+      const sub = document.createElement('button');
+      sub.className = 'sf-properties__btn sf-properties__btn--clone sf-properties__btn--clone-sub';
+      sub.innerHTML = `${CLONE_ICON_SVG} Clone ${label}`;
+      sub.addEventListener('click', () => cloneElementWithConnectors(cell, mode));
+      wrap.appendChild(sub);
+    };
+
+    if (connectorCount > 0) {
+      addSubBtn('with Connectors', 'dangling');
+    }
+    // Only show "connected Connectors" when at least one connector actually
+    // links to another element — otherwise the option is functionally
+    // identical to "with Connectors" and would just confuse users.
+    if (connectedCount > 0) {
+      addSubBtn('with connected Connectors', 'connected');
+    }
+  }
+
   parent.appendChild(wrap);
 }
 

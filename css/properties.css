@@ -501,6 +501,24 @@
   color: #fff;
 }
 
+/* When the selected element has attached connectors, additional clone
+   modes are exposed as stacked sub-buttons beneath the primary "Clone"
+   action. The strip becomes a vertical flex container so the sub-buttons
+   sit directly under the primary button with a small gap. */
+.sf-clone-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Sub-buttons match the primary Clone button's size; only their wrapping
+   behavior differs to accommodate the longer "with connected Connectors"
+   label inside the narrow panel. */
+.sf-properties__btn--clone-sub {
+  white-space: normal;
+  text-align: center;
+}
+
 /* Delete — red danger */
 .sf-properties__btn--delete {
   border-color: #DA4E55;
