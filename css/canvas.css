@@ -164,3 +164,15 @@
   from { stroke-dashoffset: 12; }
   to   { stroke-dashoffset: 0; }
 }
+
+/* ── User-chosen line style overlay (Safari-safe dashed/dotted) ── */
+/* Same technique as flow animation: paint a bg-coloured clone on top
+   of the solid line so the gaps "erase" stripes, without ever putting
+   stroke-dasharray on the path that carries the markers.  The inline
+   stroke-dasharray attribute on the clone is the INVERSE of the user's
+   pick (e.g. "8 4" → "4 8") so visible segments equal the first value. */
+.sf-line-style-overlay {
+  stroke: var(--bg-canvas) !important;
+  pointer-events: none;
+  fill: none;
+}

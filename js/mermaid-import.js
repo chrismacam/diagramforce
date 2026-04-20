@@ -11,7 +11,7 @@
 // does NOT use the real mermaid grammar and will not handle every edge case.
 // It aims to cover the most common mermaid snippets produced by LLMs and docs.
 
-import { createElementFromTemplate } from './templates.js?v=1.6.1';
+import { createElementFromTemplate } from './templates.js?v=1.6.2';
 
 let modules = {};
 
@@ -846,7 +846,6 @@ function buildLink(lk, src, tgt) {
     sourceMarker,
     targetMarker,
   };
-  if (dashArray) lineAttrs.strokeDasharray = dashArray;
 
   const link = new joint.shapes.standard.Link({
     source: { id: src.id },
@@ -856,6 +855,9 @@ function buildLink(lk, src, tgt) {
     connector: { name: 'rounded', args: { radius: 8 } },
     z: 0,
   });
+  // Dashed lines use `cell.prop('lineStyle')` so the overlay manager can
+  // paint dashes without bleeding into marker content on Safari.
+  if (dashArray) link.prop('lineStyle', dashArray);
 
   if (lk.label) {
     link.labels([{
@@ -1305,7 +1307,6 @@ function buildSequenceLink(lk, src, tgt) {
     sourceMarker,
     targetMarker,
   };
-  if (dashed) lineAttrs.strokeDasharray = '6 4';
 
   const link = new joint.shapes.standard.Link({
     source: {
@@ -1322,6 +1323,9 @@ function buildSequenceLink(lk, src, tgt) {
     attrs: { line: lineAttrs },
     z: 3000,
   });
+  // Dashed lines use `cell.prop('lineStyle')` so the overlay manager can
+  // paint dashes without bleeding into marker content on Safari.
+  if (dashed) link.prop('lineStyle', '6 4');
 
   if (lk.label) {
     link.labels([{

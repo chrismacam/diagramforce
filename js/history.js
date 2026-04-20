@@ -84,6 +84,21 @@ export function init(_graph) {
       redo: () => { const c = graph.getCell(id); if (c) c.set('attrs', newAttrs); },
     });
   });
+
+  // Custom `lineStyle` prop (Safari-safe dashed/dotted connectors).
+  // Stored separately from `line/strokeDasharray` so the real line never
+  // carries a dasharray; see canvas.js → startLineStyleOverlays().
+  graph.on('change:lineStyle', (cell) => {
+    if (isUndoRedoing) return;
+    const oldStyle = cell.previous('lineStyle') ?? null;
+    const newStyle = cell.get('lineStyle') ?? null;
+    if (oldStyle === newStyle) return;
+    const id = cell.id;
+    pushCommand({
+      undo: () => { const c = graph.getCell(id); if (c) c.prop('lineStyle', oldStyle); },
+      redo: () => { const c = graph.getCell(id); if (c) c.prop('lineStyle', newStyle); },
+    });
+  });
 }
 
 function pushCommand(cmd) {

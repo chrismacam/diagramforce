@@ -451,7 +451,8 @@ function showMermaidImportModal() {
           <span data-type="graph"><strong>graph</strong> → Process</span>,
           <span data-type="flowchart"><strong>flowchart</strong> → Process</span>,
           <span data-type="state"><strong>stateDiagram</strong> → Process</span>,
-          <span data-type="er"><strong>erDiagram</strong> → Data Model</span>.
+          <span data-type="er"><strong>erDiagram</strong> → Data Model</span>,
+          <span data-type="sequence"><strong>sequenceDiagram</strong> → Sequence</span>.
         </p>
       </div>
       <div class="sf-modal__footer" style="justify-content:flex-end;gap:8px">

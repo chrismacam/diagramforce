@@ -505,10 +505,12 @@ export function init() {
             fill: 'none',
             stroke: '#888888',
             'stroke-width': 2,
+            'stroke-dasharray': 'none',
           },
           targetMarker: {
             type: 'path',
             d: 'M 0 -6 L -14 0 L 0 6 z',
+            'stroke-dasharray': 'none',
           },
         },
       },
@@ -641,9 +643,12 @@ export function init() {
     const srcPort = srcCell.getPort(src.port);
     const tgtPort = tgtCell.getPort(tgt.port);
     if (srcPort?.group !== 'seq-left' || tgtPort?.group !== 'seq-right') return;
-    const currentDash = link.attr('line/strokeDasharray');
-    if (currentDash && currentDash !== 'none') return;
-    link.attr('line/strokeDasharray', '6 4');
+    // Write to the custom `lineStyle` prop (not `line/strokeDasharray`) so
+    // the overlay manager renders the dashes without bleeding into the
+    // arrowhead marker on Safari.
+    const currentStyle = link.prop('lineStyle');
+    if (currentStyle && currentStyle !== 'none') return;
+    link.prop('lineStyle', '6 4');
   });
 
   // --- Pan (drag on blank canvas area) ---
@@ -897,6 +902,10 @@ export function init() {
     }
   });
 
+  // Start the dashed/dotted line overlay manager (Safari-safe rendering).
+  // Must run after the paper is mounted so the SVG viewport exists.
+  startLineStyleOverlays();
+
   return { graph, paper };
 }
 
@@ -1063,6 +1072,91 @@ export function setViewport({ zoom, translate } = {}) {
   if (translate != null) paper.translate(translate.tx, translate.ty);
 }
 
+// ── Line-style overlays (dashed / dotted connectors) ────────────────
+// Safari propagates stroke-dasharray into SVG <marker> content at the
+// rendering level, making arrowheads/ER markers render dashed whenever
+// the line is dashed — no combination of marker attributes or CSS can
+// override this.  Same workaround as flow animation (toolbar.js): keep
+// the real line + markers SOLID, then overlay a clone painted in the
+// canvas background colour that "erases" stripes to simulate the dash
+// pattern.  The user's choice is stored on `cell.prop('lineStyle')`
+// so it never lands on `line/strokeDasharray`.
+//
+// Overlay dasharray is the user's pair reversed:
+//   "8 4"  (dashed)  → overlay "4 8"  (erase 4px, show 8px solid line)
+//   "2 4"  (dotted)  → overlay "4 2"  (erase 4px, show 2px solid line)
+// The overlay stroke width matches the underlying line so gaps are
+// fully erased.
+
+let _lineStyleObserver = null;
+let _lineStyleSyncId = 0;
+
+function scheduleLineStyleSync() {
+  if (_lineStyleSyncId) return;
+  _lineStyleSyncId = requestAnimationFrame(() => {
+    _lineStyleSyncId = 0;
+    syncLineStyleOverlays();
+  });
+}
+
+export function syncLineStyleOverlays() {
+  if (!paper || !graph) return;
+  // Disconnect the observer while we mutate the DOM to prevent feedback loops.
+  if (_lineStyleObserver) _lineStyleObserver.disconnect();
+  try {
+    // Remove stale overlays
+    document.querySelectorAll('.sf-line-style-overlay').forEach(el => el.remove());
+
+    for (const link of graph.getLinks()) {
+      const style = link.prop('lineStyle');
+      if (!style || style === 'none') continue;
+
+      const linkEl = document.querySelector(`.joint-link[model-id="${link.id}"]`);
+      if (!linkEl) continue;
+      const lineEl = linkEl.querySelector('[joint-selector="line"]');
+      if (!lineEl) continue;
+
+      const clone = lineEl.cloneNode(false);
+      clone.removeAttribute('marker-start');
+      clone.removeAttribute('marker-end');
+      clone.removeAttribute('marker-mid');
+      clone.removeAttribute('joint-selector');
+      clone.setAttribute('class', 'sf-line-style-overlay');
+
+      // Invert the user's dasharray so the overlay erases the right stripes.
+      const parts = String(style).trim().split(/\s+/);
+      const inverted = parts.length === 2 ? `${parts[1]} ${parts[0]}` : String(style);
+      clone.setAttribute('stroke-dasharray', inverted);
+
+      lineEl.parentNode.insertBefore(clone, lineEl.nextSibling);
+    }
+  } finally {
+    // Reconnect the observer
+    if (_lineStyleObserver) {
+      const target = document.querySelector('#paper svg .joint-viewport')
+                  || document.querySelector('#paper svg');
+      if (target) _lineStyleObserver.observe(target, { childList: true, subtree: true });
+    }
+  }
+}
+
+export function startLineStyleOverlays() {
+  if (_lineStyleObserver) return;
+  const target = document.querySelector('#paper svg .joint-viewport')
+              || document.querySelector('#paper svg');
+  if (!target) return;
+  _lineStyleObserver = new MutationObserver(() => scheduleLineStyleSync());
+  _lineStyleObserver.observe(target, { childList: true, subtree: true });
+
+  // Re-sync when a link's lineStyle prop changes, or when links are added/removed.
+  graph.on('change:lineStyle', scheduleLineStyleSync);
+  graph.on('add remove', (cell) => {
+    if (cell.isLink && cell.isLink()) scheduleLineStyleSync();
+  });
+
+  scheduleLineStyleSync();
+}
+
 // ── Migrate link labels to use canvas-bg rect + connector-colored text ──
 export function migrateLinks() {
   for (const link of graph.getLinks()) {
@@ -1132,6 +1226,32 @@ export function migrateLinks() {
         link.attr(`line/${key}`, { type: 'path', d: newD, fill: markerFill, stroke, 'stroke-width': sw });
       }
     }
+
+    // Pin `stroke-dasharray: 'none'` on every marker as defence in depth
+    // (handles browsers that respect marker-level attribute overrides —
+    // Chrome, Firefox).  Safari ignores this because it propagates the
+    // line's dasharray into marker content at the renderer level; for
+    // Safari we also render a bg-coloured overlay (startLineStyleOverlays)
+    // so the real line never carries a dasharray in the first place.
+    for (const key of ['sourceMarker', 'targetMarker']) {
+      const m = link.attr(`line/${key}`);
+      if (m && m['stroke-dasharray'] !== 'none') {
+        link.attr(`line/${key}`, { ...m, 'stroke-dasharray': 'none' });
+      }
+    }
+
+    // Legacy migration: move `line/strokeDasharray` onto `cell.prop('lineStyle')`
+    // so the real line renders solid (markers stay crisp) while the overlay
+    // manager paints the dashes.  Skip links that are already migrated.
+    const legacyDash = link.attr('line/strokeDasharray');
+    if (legacyDash && typeof legacyDash === 'string' && legacyDash !== 'none' && !link.prop('lineStyle')) {
+      link.prop('lineStyle', legacyDash);
+      link.attr('line/strokeDasharray', null);
+    } else if (legacyDash && link.prop('lineStyle')) {
+      // Belt-and-suspenders: if both are set (shouldn't happen), clear the line attr.
+      link.attr('line/strokeDasharray', null);
+    }
+
     const labels = link.labels();
     if (!labels || !labels.length) continue;
     const lineColor = link.attr('line/stroke') || '#888888';

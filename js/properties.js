@@ -1,9 +1,9 @@
 // Properties panel — left sidebar element inspector
 // Properties are grouped into collapsible accordion sections
 
-import { getAllIcons, getIconDataUri } from './icons.js?v=1.6.1';
-import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout, syncMobilePanelHeight } from './canvas.js?v=1.6.1';
-import { resizeDataObjectToFit, contrastTextColor } from './templates.js?v=1.6.1';
+import { getAllIcons, getIconDataUri } from './icons.js?v=1.6.2';
+import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout, syncMobilePanelHeight } from './canvas.js?v=1.6.2';
+import { resizeDataObjectToFit, contrastTextColor } from './templates.js?v=1.6.2';
 import {
   duplicate as clipboardDuplicate,
   cloneElementWithConnectors,
@@ -12,8 +12,8 @@ import {
   cloneSelectionWithMode,
   countExternalConnectors,
   countExternalConnectedConnectors,
-} from './clipboard.js?v=1.6.1';
-import * as history from './history.js?v=1.6.1';
+} from './clipboard.js?v=1.6.2';
+import * as history from './history.js?v=1.6.2';
 
 /**
  * Wrap a callback so every mutation inside it (potentially many
@@ -1018,9 +1018,17 @@ function renderLineProps(cell) {
   ];
 
   function applyLineStyle(style) {
-    cell.set('lineStyle', style);
-    const dashMap = { solid: 'none', dashed: '12 6', dotted: '3 4', breaks: '16 8 2 8' };
-    cell.attr('line/strokeDasharray', dashMap[style] || 'none');
+    // Wrap both writes in a single batch — `change:lineStyle` and
+    // `change:attrs` each push their own undo entry otherwise, forcing
+    // the user to hit Undo twice for a single Style change.
+    history.startBatch();
+    try {
+      cell.set('lineStyle', style);
+      const dashMap = { solid: 'none', dashed: '12 6', dotted: '3 4', breaks: '16 8 2 8' };
+      cell.attr('line/strokeDasharray', dashMap[style] || 'none');
+    } finally {
+      history.endBatch();
+    }
   }
 
   // Appearance
@@ -2579,39 +2587,57 @@ function renderLinkProps(cell) {
     });
   addNumber(appearance, 'Stroke width', cell.attr('line/strokeWidth') ?? 2,
     v => cell.attr('line/strokeWidth', v));
-  addSelect(appearance, 'Line style', cell.attr('line/strokeDasharray') || 'none', [
+  addSelect(appearance, 'Line style', cell.prop('lineStyle') || 'none', [
     { value: 'none', label: 'Solid' },
     { value: '8 4',  label: 'Dashed' },
     { value: '2 4',  label: 'Dotted' },
-  ], v => cell.attr('line/strokeDasharray', v === 'none' ? null : v));
+  ], v => {
+    // The line style is stored on a custom `lineStyle` prop — NOT on
+    // `line/strokeDasharray` — so the rendered line always stays solid
+    // (keeping arrow/ER markers crisp in Safari, which otherwise
+    // propagates dasharray into marker content at the renderer level).
+    // canvas.js' startLineStyleOverlays() paints a bg-coloured clone that
+    // "erases" stripes to simulate the dash pattern.
+    cell.prop('lineStyle', v === 'none' ? null : v);
+    // Defence in depth: make sure the native line dasharray never lands
+    // on the real path, even if some legacy code path writes it.
+    if (cell.attr('line/strokeDasharray')) cell.attr('line/strokeDasharray', null);
+  });
   const stroke = cell.attr('line/stroke') || '#333333';
   // ER crow's foot markers — negative-x convention (toward element).
   // Crow's foot prongs fan out toward negative-x (toward the entity).
   // Explicit fill/stroke is set because ER markers are open paths (no
   // auto-inheritance from line).
+  // All marker defs include `'stroke-dasharray': 'none'` so that when the
+  // line is dashed/dotted, the marker geometry stays solid — browsers
+  // (notably Safari) otherwise propagate the line's dasharray into marker
+  // content at the rendering level, making arrowheads / ER notation look
+  // broken.  For auto-inheriting markers (e.g. `arrow`), the explicit
+  // 'none' does not override stroke/fill inheritance — it only pins the
+  // dasharray.
   const markerDefs = {
     // None: simple stub line extending toward element (fills the connectionPoint gap)
-    none:        { type: 'path', d: 'M 0 0 L -12 0', fill: 'none', stroke: stroke, 'stroke-width': 2 },
+    none:        { type: 'path', d: 'M 0 0 L -12 0', fill: 'none', stroke: stroke, 'stroke-width': 2, 'stroke-dasharray': 'none' },
     // Arrow: NO explicit fill/stroke — JointJS auto-inherits from line stroke
     // and auto-trims the line at the marker boundary. Using JointJS native
     // coordinate convention: tip at negative-x, base at x=0.
-    arrow:       { type: 'path', d: 'M 0 -6 L -14 0 L 0 6 z' },
+    arrow:       { type: 'path', d: 'M 0 -6 L -14 0 L 0 6 z', 'stroke-dasharray': 'none' },
     // Line arrow (open V): two-stroke open arrowhead, no fill. Used for
     // async/open messages on sequence diagrams; also useful as a lighter
     // alternative to the filled arrow on any diagram type. Explicit fill/
     // stroke because this is an open path (won't auto-inherit like `arrow`).
-    lineArrow:   { type: 'path', d: 'M 0 -6 L -14 0 L 0 6', fill: 'none', stroke: stroke, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' },
+    lineArrow:   { type: 'path', d: 'M 0 -6 L -14 0 L 0 6', fill: 'none', stroke: stroke, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': 'none' },
     // ── ER notation (negative-x = toward element, positive-x = toward link) ──
     // One: bar at entity end (x=-12) + stem back to line (x=0)
-    one:         { type: 'path', d: 'M -12 -8 L -12 8 M -12 0 L 0 0', fill: 'none', stroke: stroke, 'stroke-width': 2 },
+    one:         { type: 'path', d: 'M -12 -8 L -12 8 M -12 0 L 0 0', fill: 'none', stroke: stroke, 'stroke-width': 2, 'stroke-dasharray': 'none' },
     // Zero-or-One: circle (line side, edge at x=2) → connecting line → bar at x=-12 (entity side)
-    zeroOne:     { type: 'path', d: 'M 2 0 a 5 5 0 1 1 -10 0 a 5 5 0 1 1 10 0 Z M -8 0 L -12 0 M -12 -8 L -12 8', fill: 'var(--bg-canvas, #1A1A1A)', stroke: stroke, 'stroke-width': 2 },
+    zeroOne:     { type: 'path', d: 'M 2 0 a 5 5 0 1 1 -10 0 a 5 5 0 1 1 10 0 Z M -8 0 L -12 0 M -12 -8 L -12 8', fill: 'var(--bg-canvas, #1A1A1A)', stroke: stroke, 'stroke-width': 2, 'stroke-dasharray': 'none' },
     // Many: crow's foot — 3 prongs fan toward element
-    many:        { type: 'path', d: 'M -12 -8 L 0 0 L -12 8 M 0 0 L -12 0', fill: 'none', stroke: stroke, 'stroke-width': 2 },
+    many:        { type: 'path', d: 'M -12 -8 L 0 0 L -12 8 M 0 0 L -12 0', fill: 'none', stroke: stroke, 'stroke-width': 2, 'stroke-dasharray': 'none' },
     // One-or-Many: bar (line side) → crow's foot (entity side)
-    oneMany:     { type: 'path', d: 'M -12 -8 L 0 0 L -12 8 M 0 0 L -12 0 M 3 -8 L 3 8', fill: 'none', stroke: stroke, 'stroke-width': 2 },
+    oneMany:     { type: 'path', d: 'M -12 -8 L 0 0 L -12 8 M 0 0 L -12 0 M 3 -8 L 3 8', fill: 'none', stroke: stroke, 'stroke-width': 2, 'stroke-dasharray': 'none' },
     // Zero-or-Many: circle (link side, 4px gap, bg-filled) → crow's foot (entity side, identical to many)
-    zeroMany:    { type: 'path', d: 'M 4 0 a 5 5 0 1 1 10 0 a 5 5 0 1 1 -10 0 Z M -12 -8 L 0 0 M 0 0 L -12 8 M 0 0 L -12 0', fill: 'var(--bg-canvas, #1A1A1A)', stroke: stroke, 'stroke-width': 2 },
+    zeroMany:    { type: 'path', d: 'M 4 0 a 5 5 0 1 1 10 0 a 5 5 0 1 1 -10 0 Z M -12 -8 L 0 0 M 0 0 L -12 8 M 0 0 L -12 0', fill: 'var(--bg-canvas, #1A1A1A)', stroke: stroke, 'stroke-width': 2, 'stroke-dasharray': 'none' },
   };
   const markerOpts = [
     { value: 'none',      label: 'None' },

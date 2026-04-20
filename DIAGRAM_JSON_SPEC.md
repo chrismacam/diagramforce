@@ -7,7 +7,7 @@
 ```json
 {
   "version": 1,
-  "appVersion": "1.6.1",
+  "appVersion": "1.6.2",
   "timestamp": 1712700000000,
   "title": "My Diagram",
   "diagramType": "architecture",
@@ -24,7 +24,7 @@
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `version` | number | Yes | Always `1` |
-| `appVersion` | string | Yes | Semver string, currently `"1.6.1"` |
+| `appVersion` | string | Yes | Semver string, currently `"1.6.2"` |
 | `timestamp` | number | No | Unix timestamp in milliseconds |
 | `title` | string | Yes | Diagram name (shown as tab title) |
 | `diagramType` | string | Yes | One of: `"architecture"`, `"process"`, `"data"`, `"organisation"`, `"gantt"`, `"sequence"` |
@@ -141,6 +141,9 @@ Links connect two elements via ports:
 | `connector` | Yes | Always `{ "name": "rounded", "args": { "radius": 8 } }` |
 | `vertices` | No | Array of `{ "x": n, "y": n }` waypoints for manual routing |
 | `labels` | No | Array of label objects (see below) |
+| `lineStyle` | No | Dashed/dotted dash pattern as a raw SVG `stroke-dasharray` string (`"8 4"` dashed, `"2 4"` dotted, `"6 4"` for sequence replies). Stored as a **top-level cell property** — NOT `attrs.line.strokeDasharray`. Rendered as a bg-coloured overlay clone because Safari leaks `stroke-dasharray` into `<marker>` content. Omitted / `null` means solid. |
+
+**Why `lineStyle` and not `attrs.line.strokeDasharray` (v1.6.2+):** Safari propagates a path's `stroke-dasharray` into its SVG `<marker>` elements at the renderer level, causing arrowheads / ER notation to render dashed along with the line. The app keeps the real path solid and paints a canvas-bg-coloured clone (with the dash pattern) on top to simulate dashes. `lineStyle` is the canonical storage; legacy `attrs.line.strokeDasharray` values on loaded diagrams are auto-migrated to `lineStyle` and the attr is cleared.
 
 ### Link Labels
 
@@ -1041,7 +1044,7 @@ UML fragment box (loop / alt / opt / par / critical / break) with a pentagonal l
 
 Sequence messages are `standard.Link` instances that use `topLeft` anchors with an explicit `dy` to attach at a precise Y on each lifeline. They intentionally do **not** use ports — the 5 discrete lifeline ports in the shape exist for interactive editing only.
 
-When a user draws an interactive link from the `seq-left` port of one element to the `seq-right` port of another (the "right-to-left" direction in UML), the app automatically applies `strokeDasharray: "6 4"` to follow the UML reply/return convention. This only runs on initial drop, so manually editing a link's style is preserved.
+When a user draws an interactive link from the `seq-left` port of one element to the `seq-right` port of another (the "right-to-left" direction in UML), the app automatically sets `lineStyle: "6 4"` on the link to follow the UML reply/return convention. This only runs on initial drop, so manually editing a link's style is preserved.
 
 | Operator | `style` | `arrow` | Visual |
 |----------|---------|---------|--------|
@@ -1089,7 +1092,7 @@ When a user draws an interactive link from the `seq-left` port of one element to
 }
 ```
 
-For a dashed response, set `attrs.line.strokeDasharray` to `"6 4"`.
+For a dashed response, set top-level `lineStyle` on the link to `"6 4"` (the app renders the dashes as a bg-coloured overlay so the arrow marker stays solid on Safari).
 For an async open arrow, replace `targetMarker.d` with `"M -14 -6 L 0 0 L -14 6"` and add `"fill": "none", "stroke": "#5E6B7A", "stroke-width": 2`.
 
 ---
@@ -1103,7 +1106,7 @@ A simple 3-node architecture with one container:
 ```json
 {
   "version": 1,
-  "appVersion": "1.6.1",
+  "appVersion": "1.6.2",
   "timestamp": 1712700000000,
   "title": "Simple Architecture",
   "diagramType": "architecture",
@@ -1259,7 +1262,7 @@ Two related Salesforce objects with ER notation:
 ```json
 {
   "version": 1,
-  "appVersion": "1.6.1",
+  "appVersion": "1.6.2",
   "timestamp": 1712700000000,
   "title": "Account-Contact ERD",
   "diagramType": "data",
@@ -1379,7 +1382,7 @@ A two-participant sync exchange with an activation box and an `alt` fragment. Pa
 ```json
 {
   "version": 1,
-  "appVersion": "1.6.1",
+  "appVersion": "1.6.2",
   "title": "Account Lookup",
   "diagramType": "sequence",
   "graph": {
@@ -1468,11 +1471,12 @@ A two-participant sync exchange with an activation box and an `alt` fragment. Pa
         "connectionPoint": { "name": "anchor" },
         "router":    { "name": "normal" },
         "connector": { "name": "normal" },
+        "lineStyle": "6 4",
         "attrs": {
           "line": {
-            "stroke": "#5E6B7A", "strokeWidth": 2, "strokeDasharray": "6 4",
-            "sourceMarker": { "type": "path", "d": "M 0 0 L -6 0", "fill": "none", "stroke": "#5E6B7A", "stroke-width": 2 },
-            "targetMarker": { "type": "path", "d": "M 0 -6 L -14 0 L 0 6 z" }
+            "stroke": "#5E6B7A", "strokeWidth": 2,
+            "sourceMarker": { "type": "path", "d": "M 0 0 L -6 0", "fill": "none", "stroke": "#5E6B7A", "stroke-width": 2, "stroke-dasharray": "none" },
+            "targetMarker": { "type": "path", "d": "M 0 -6 L -14 0 L 0 6 z", "stroke-dasharray": "none" }
           }
         },
         "labels": [
