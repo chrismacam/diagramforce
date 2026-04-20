@@ -1460,11 +1460,14 @@ export function initMobileDragHandles() {
       handle.setPointerCapture(evt.pointerId);
 
       const startY = evt.clientY;
+      const startT = Date.now();
       const startH = target.getBoundingClientRect().height;
+      let lastY = startY;
       document.body.style.userSelect = 'none';
       document.body.style.webkitUserSelect = 'none';
 
       const onMove = (e) => {
+        lastY = e.clientY;
         const delta = startY - e.clientY;
         const maxH = window.innerHeight * 0.8;
         const newH = Math.max(80, Math.min(maxH, startH + delta));
@@ -1474,8 +1477,24 @@ export function initMobileDragHandles() {
       const onEnd = () => {
         document.body.style.userSelect = '';
         document.body.style.webkitUserSelect = '';
-        const finalH = Math.round(target.getBoundingClientRect().height);
-        localStorage.setItem(PANEL_HEIGHT_KEY, finalH);
+        const dt = Date.now() - startT;
+        const totalDown = lastY - startY;
+
+        // Swipe-down to collapse: fast downward flick OR large downward drag.
+        const isSwipeDown = (dt < 300 && totalDown > 50) || totalDown > 120;
+        if (isSwipeDown) {
+          target.style.height = '';
+          if (target.id === 'properties-panel') {
+            target.classList.add('sf-properties--hidden');
+          } else if (target.id === 'stencil-panel') {
+            target.classList.add('sf-stencil--hidden');
+            const btn = document.getElementById('btn-toggle-stencil');
+            if (btn) btn.classList.remove('sf-toolbar__button--active');
+          }
+        } else {
+          const finalH = Math.round(target.getBoundingClientRect().height);
+          localStorage.setItem(PANEL_HEIGHT_KEY, finalH);
+        }
         handle.removeEventListener('pointermove', onMove);
         handle.removeEventListener('pointerup', onEnd);
         handle.removeEventListener('pointercancel', onEnd);

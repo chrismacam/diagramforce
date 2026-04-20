@@ -20,9 +20,21 @@
   padding: var(--spacing-sm) var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.sf-stencil__close {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 6px;
 }
 
 .sf-stencil__search {
+  flex: 1;
+  min-width: 0;
   width: 100%;
   padding: 6px var(--spacing-md);
   border: 1px solid var(--border-color);

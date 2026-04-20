@@ -1,9 +1,10 @@
 // Properties panel — left sidebar element inspector
 // Properties are grouped into collapsible accordion sections
 
-import { getAllIcons, getIconDataUri } from './icons.js?v=1.6.2';
-import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout, syncMobilePanelHeight } from './canvas.js?v=1.6.2';
-import { resizeDataObjectToFit, contrastTextColor } from './templates.js?v=1.6.2';
+import { getAllIcons, getIconDataUri } from './icons.js?v=1.6.3';
+import { Z_BASE, Z_TIER_SPAN, updateSimpleNodeLayout, syncMobilePanelHeight } from './canvas.js?v=1.6.3';
+import * as stencilModule from './stencil.js?v=1.6.3';
+import { resizeDataObjectToFit, contrastTextColor } from './templates.js?v=1.6.3';
 import {
   duplicate as clipboardDuplicate,
   cloneElementWithConnectors,
@@ -12,8 +13,8 @@ import {
   cloneSelectionWithMode,
   countExternalConnectors,
   countExternalConnectedConnectors,
-} from './clipboard.js?v=1.6.2';
-import * as history from './history.js?v=1.6.2';
+} from './clipboard.js?v=1.6.3';
+import * as history from './history.js?v=1.6.3';
 
 /**
  * Wrap a callback so every mutation inside it (potentially many
@@ -361,6 +362,7 @@ export function init(_graph, _paper, _selection) {
 
   document.getElementById('btn-close-properties').addEventListener('click', () => {
     panelEl.classList.add('sf-properties--hidden');
+    restoreStencilAfterProperties();
     selection.clearSelection();
   });
 
@@ -377,6 +379,7 @@ export function init(_graph, _paper, _selection) {
     } else {
       panelEl.classList.add('sf-properties--hidden');
       footerEl.innerHTML = '';
+      restoreStencilAfterProperties();
     }
   });
 
@@ -525,8 +528,29 @@ function startInlineEdit(cellView, evt) {
   });
 }
 
+// ── Mobile: hide stencil while properties is open, restore on close ──
+let stencilWasOpen = false;
+
+function hideStencilForProperties() {
+  if (window.innerWidth > 768) return;
+  if (stencilModule.isHidden && !stencilModule.isHidden()) {
+    stencilWasOpen = true;
+    stencilModule.hide();
+  }
+}
+
+function restoreStencilAfterProperties() {
+  if (window.innerWidth > 768) { stencilWasOpen = false; return; }
+  if (stencilWasOpen && stencilModule.show) {
+    stencilModule.show();
+  }
+  stencilWasOpen = false;
+}
+
 function showProperties(cell) {
+  const wasHidden = panelEl.classList.contains('sf-properties--hidden');
   panelEl.classList.remove('sf-properties--hidden');
+  if (wasHidden) hideStencilForProperties();
   syncMobilePanelHeight(panelEl);
   bodyEl.innerHTML = '';
   footerEl.innerHTML = '';
@@ -575,7 +599,9 @@ function showProperties(cell) {
 }
 
 function showMultiProperties(count) {
+  const wasHidden = panelEl.classList.contains('sf-properties--hidden');
   panelEl.classList.remove('sf-properties--hidden');
+  if (wasHidden) hideStencilForProperties();
   typeBadgeEl.textContent = 'Selection';
   titleEl.textContent = `${count} elements`;
   bodyEl.innerHTML = '';

@@ -1,6 +1,8 @@
 // Selection manager — tracks selected elements
 // Provides single-click, shift-click, rubber-band selection, and alignment ops
 
+import * as clipboard from './clipboard.js?v=1.6.3';
+
 let graph, paper;
 const selectedIds = new Set();
 const onChangeCallbacks = [];
@@ -26,13 +28,17 @@ function addResizeHandles(view) {
   const minW = (type === 'sf.SequenceActivation') ? 12 : 80;
   const minH = (type === 'sf.GanttTask' || type === 'sf.GanttMilestone') ? 24 : (type === 'sf.GanttGroup') ? 16 : 40;
 
+  const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const handleSize = coarsePointer ? 20 : 12;
+  const handleOffset = handleSize / 2;
+
   RESIZE_CORNERS.forEach(({ cx, cy, cursor }) => {
     const g = document.createElementNS(SVG_NS, 'g');
     const rect = document.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('width', '12');
-    rect.setAttribute('height', '12');
-    rect.setAttribute('x', '-6');
-    rect.setAttribute('y', '-6');
+    rect.setAttribute('width', String(handleSize));
+    rect.setAttribute('height', String(handleSize));
+    rect.setAttribute('x', String(-handleOffset));
+    rect.setAttribute('y', String(-handleOffset));
     rect.setAttribute('fill', 'var(--selection-color)');
     rect.setAttribute('stroke', 'white');
     rect.setAttribute('stroke-width', '1.5');
@@ -216,21 +222,63 @@ export function init(_graph, _paper) {
   // Helper: Cmd on Mac, Ctrl on Windows/Linux for multi-select
   const isMultiSelectKey = (evt) => evt.metaKey || evt.ctrlKey;
 
+  // Track touch pointers currently holding an element — enables two-finger
+  // multi-select: one finger holds, second finger taps another element.
+  const activeTouches = new Map(); // pointerId -> elementId
+
   paper.on('element:pointerdown', (cellView, evt) => {
     evt.stopPropagation();
     pointerDownId = cellView.model.id;
     didDrag = false;
+
+    const isTouch = evt.pointerType === 'touch';
+    const id = cellView.model.id;
+
+    // Multi-touch multi-select: if another finger is already holding a different element, toggle.
+    if (isTouch && activeTouches.size > 0) {
+      let holdingDifferent = false;
+      for (const heldId of activeTouches.values()) {
+        if (heldId !== id) { holdingDifferent = true; break; }
+      }
+      if (holdingDifferent) {
+        // Ensure the held element(s) are selected, then toggle this one.
+        for (const heldId of activeTouches.values()) {
+          if (!selectedIds.has(heldId)) addToSelection(heldId);
+        }
+        toggle(id);
+        if (navigator.vibrate) navigator.vibrate(8);
+        activeTouches.set(evt.pointerId, id);
+        return;
+      }
+    }
+
+    if (isTouch) {
+      activeTouches.set(evt.pointerId, id);
+      startLongPressMenu(cellView, evt);
+    }
+
     if (isMultiSelectKey(evt)) {
-      toggle(cellView.model.id);
-    } else if (!selectedIds.has(cellView.model.id)) {
+      toggle(id);
+    } else if (!selectedIds.has(id)) {
       // Not in current selection — select only this one
-      selectOnly(cellView.model.id);
+      selectOnly(id);
     }
     // If already selected: keep multi-selection intact for potential group drag
   });
 
+  const clearTouch = (evt) => {
+    if (evt.pointerId != null) activeTouches.delete(evt.pointerId);
+  };
+  paper.on('element:pointerup', (cellView, evt) => {
+    clearTouch(evt);
+    cancelLongPressMenu();
+  });
+  document.addEventListener('pointerup', clearTouch);
+  document.addEventListener('pointercancel', (e) => { clearTouch(e); cancelLongPressMenu(); });
+
   paper.on('element:pointermove', () => {
     didDrag = true;
+    cancelLongPressMenu();
   });
 
   paper.on('element:pointerup', (cellView, evt) => {
@@ -310,6 +358,9 @@ export function selectAll() {
 
 export function deleteSelected() {
   const cells = getSelectedElements();
+  if (cells.length && navigator.vibrate && window.matchMedia?.('(pointer: coarse)').matches) {
+    navigator.vibrate(25);
+  }
   clearVisual();
   selectedIds.clear();
   notifyChange();
@@ -543,4 +594,91 @@ export function alignBottom() {
   if (els.length < 2) return;
   const maxY = Math.max(...els.map(e => e.position().y + e.size().height));
   els.forEach(e => e.position(e.position().x, maxY - e.size().height));
+}
+
+// ── Long-press context menu (touch / mobile) ──────────────────────
+const LONG_PRESS_MS = 450;
+let longPressTimer = null;
+let longPressMenu = null;
+
+function startLongPressMenu(cellView, evt) {
+  if (window.innerWidth > 768) return;
+  cancelLongPressMenu();
+  const clientX = evt.clientX;
+  const clientY = evt.clientY;
+  const model = cellView.model;
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null;
+    // Ensure the element is selected so actions apply to it
+    if (!selectedIds.has(model.id)) selectOnly(model.id);
+    if (navigator.vibrate) navigator.vibrate(20);
+    showContextMenu(clientX, clientY, model);
+  }, LONG_PRESS_MS);
+}
+
+function cancelLongPressMenu() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+function showContextMenu(clientX, clientY, model) {
+  closeContextMenu();
+
+  const isLink = model.isLink();
+  const menu = document.createElement('div');
+  menu.className = 'sf-ctx-menu';
+
+  const addItem = (label, icon, action) => {
+    const b = document.createElement('button');
+    b.className = 'sf-ctx-menu__item';
+    b.innerHTML = `<span class="sf-ctx-menu__icon">${icon}</span><span>${label}</span>`;
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeContextMenu();
+      action();
+    });
+    menu.appendChild(b);
+  };
+
+  if (!isLink) {
+    addItem('Duplicate', '⧉', () => clipboard.duplicate());
+    addItem('Copy', '❏', () => clipboard.copy());
+  }
+  addItem('Delete', '✕', () => {
+    if (navigator.vibrate) navigator.vibrate(30);
+    deleteSelected();
+  });
+
+  document.body.appendChild(menu);
+
+  // Position — clamp to viewport
+  const mr = menu.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  let x = clientX - mr.width / 2;
+  let y = clientY - mr.height - 12;
+  if (y < 8) y = clientY + 16;
+  x = Math.max(8, Math.min(vw - mr.width - 8, x));
+  y = Math.max(8, Math.min(vh - mr.height - 8, y));
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+
+  longPressMenu = menu;
+
+  const dismiss = (e) => {
+    if (menu.contains(e.target)) return;
+    closeContextMenu();
+  };
+  setTimeout(() => {
+    document.addEventListener('pointerdown', dismiss, { once: true });
+  }, 0);
+}
+
+function closeContextMenu() {
+  if (longPressMenu) {
+    longPressMenu.remove();
+    longPressMenu = null;
+  }
 }

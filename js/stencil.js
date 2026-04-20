@@ -1,9 +1,9 @@
 // Stencil panel — draggable component library
 // Organizes templates by category, supports search, handles drag-to-canvas
 
-import { TEMPLATE_CATEGORIES, BPMN_CATEGORIES, DATAMODEL_CATEGORIES, GANTT_CATEGORIES, ORG_CATEGORIES, SEQUENCE_CATEGORIES, createElementFromTemplate } from './templates.js?v=1.6.2';
-import { getAllIcons, getCategories } from './icons.js?v=1.6.2';
-import { updateSimpleNodeLayout, snapActivationToLifeline } from './canvas.js?v=1.6.2';
+import { TEMPLATE_CATEGORIES, BPMN_CATEGORIES, DATAMODEL_CATEGORIES, GANTT_CATEGORIES, ORG_CATEGORIES, SEQUENCE_CATEGORIES, createElementFromTemplate } from './templates.js?v=1.6.3';
+import { getAllIcons, getCategories } from './icons.js?v=1.6.3';
+import { updateSimpleNodeLayout, snapActivationToLifeline } from './canvas.js?v=1.6.3';
 
 let graph, paper;
 let panelEl, searchEl, bodyEl;
@@ -23,6 +23,26 @@ export function init(_graph, _paper) {
   });
 
   setupDropZone();
+  setupTouchDrag();
+
+  const closeBtn = document.getElementById('btn-close-stencil');
+  if (closeBtn) closeBtn.addEventListener('click', () => hide());
+}
+
+export function isHidden() {
+  return panelEl.classList.contains('sf-stencil--hidden');
+}
+
+export function show() {
+  panelEl.classList.remove('sf-stencil--hidden');
+  const btn = document.getElementById('btn-toggle-stencil');
+  if (btn) btn.classList.add('sf-toolbar__button--active');
+}
+
+export function hide() {
+  panelEl.classList.add('sf-stencil--hidden');
+  const btn = document.getElementById('btn-toggle-stencil');
+  if (btn) btn.classList.remove('sf-toolbar__button--active');
 }
 
 export function setDiagramType(type) {
@@ -104,15 +124,17 @@ function buildIconSection(cat, icons, displayLabel) {
     const safeId = icon.id.replace(/[^a-zA-Z0-9_-]/g, '');
     item.innerHTML = `<svg class="sf-stencil__icon-preview"><use href="#${safeId}"></use></svg>`;
 
+    const iconTpl = {
+      type: 'sf.SimpleNode',
+      label: icon.name.replace(/_/g, ' '),
+      iconName: icon.id,
+    };
+    item._sfTemplate = iconTpl;
+
     item.addEventListener('dragstart', (evt) => {
-      const tpl = {
-        type: 'sf.SimpleNode',
-        label: icon.name.replace(/_/g, ' '),
-        iconName: icon.id,
-      };
-      evt.dataTransfer.setData('application/sf-diagrams', JSON.stringify(tpl));
+      evt.dataTransfer.setData('application/sf-diagrams', JSON.stringify(iconTpl));
       evt.dataTransfer.effectAllowed = 'copy';
-      setDragPreview(evt, tpl);
+      setDragPreview(evt, iconTpl);
     });
 
     grid.appendChild(item);
@@ -155,6 +177,8 @@ function buildTemplateItem(template) {
   labelSpan.className = 'sf-stencil__item-label';
   labelSpan.textContent = template.label || '';
   item.appendChild(labelSpan);
+
+  item._sfTemplate = template;
 
   item.addEventListener('dragstart', (evt) => {
     evt.dataTransfer.setData('application/sf-diagrams', JSON.stringify(template));
@@ -400,5 +424,130 @@ function filterStencil(query) {
 }
 
 export function toggle() {
-  panelEl.classList.toggle('sf-stencil--hidden');
+  if (isHidden()) show();
+  else hide();
+}
+
+// ── Touch long-press → drag (HTML5 DnD doesn't work on touch) ──────
+function setupTouchDrag() {
+  let pressTimer = null;
+  let activeItem = null;
+  let activeTemplate = null;
+  let ghost = null;
+  let startXY = null;
+  let dragging = false;
+
+  const LONG_PRESS_MS = 350;
+  const MOVE_CANCEL_PX = 10;
+
+  const getTemplateFor = (itemEl) => {
+    // Template items: rebuild from dataset/label — we only have label in dataset.
+    // Easier: attach JSON directly during build. Fallback: find by iconId for icon-mode items.
+    if (itemEl._sfTemplate) return itemEl._sfTemplate;
+    return null;
+  };
+
+  const cancel = () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+    if (ghost) { ghost.remove(); ghost = null; }
+    activeItem = null;
+    activeTemplate = null;
+    startXY = null;
+    dragging = false;
+  };
+
+  const startDrag = (clientX, clientY) => {
+    if (!activeTemplate) return;
+    dragging = true;
+    if (navigator.vibrate) navigator.vibrate(15);
+    // Create simple ghost following finger
+    ghost = document.createElement('div');
+    ghost.className = 'sf-touch-drag-ghost';
+    ghost.textContent = activeTemplate.label || 'Shape';
+    ghost.style.left = clientX + 'px';
+    ghost.style.top = clientY + 'px';
+    document.body.appendChild(ghost);
+  };
+
+  const onMove = (e) => {
+    const t = e.touches?.[0];
+    if (!t) return;
+    if (!dragging && startXY) {
+      const dx = t.clientX - startXY.x;
+      const dy = t.clientY - startXY.y;
+      if (Math.hypot(dx, dy) > MOVE_CANCEL_PX && !pressTimer) {
+        // moved too far before long-press: abort
+      } else if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
+        cancel();
+      }
+      return;
+    }
+    if (dragging && ghost) {
+      e.preventDefault();
+      ghost.style.left = t.clientX + 'px';
+      ghost.style.top = t.clientY + 'px';
+    }
+  };
+
+  const onEnd = (e) => {
+    if (dragging && activeTemplate) {
+      const t = e.changedTouches?.[0];
+      if (t) {
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const canvasEl = document.getElementById('canvas-container');
+        if (el && canvasEl.contains(el)) {
+          dropTemplateAtClient(activeTemplate, t.clientX, t.clientY);
+        }
+      }
+    }
+    cancel();
+  };
+
+  panelEl.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 768) return;
+    const item = e.target.closest('.sf-stencil__item');
+    if (!item) return;
+    const tpl = getTemplateFor(item);
+    if (!tpl) return;
+    activeItem = item;
+    activeTemplate = tpl;
+    const t = e.touches[0];
+    startXY = { x: t.clientX, y: t.clientY };
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      startDrag(t.clientX, t.clientY);
+    }, LONG_PRESS_MS);
+  }, { passive: true });
+
+  panelEl.addEventListener('touchmove', onMove, { passive: false });
+  panelEl.addEventListener('touchend', onEnd);
+  panelEl.addEventListener('touchcancel', cancel);
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onEnd);
+}
+
+function dropTemplateAtClient(template, clientX, clientY) {
+  try {
+    const localPoint = paper.clientToLocalPoint(clientX, clientY);
+    const gridSize = paper.options.gridSize || 4;
+    const element = createElementFromTemplate(template, { x: 0, y: 0 });
+    if (!element) return;
+    applyDisplayFlags(element);
+    const size = element.size();
+    const cx = localPoint.x - size.width / 2;
+    const cy = localPoint.y - size.height / 2;
+    element.position(
+      Math.round(cx / gridSize) * gridSize,
+      Math.round(cy / gridSize) * gridSize,
+    );
+    graph.addCell(element);
+    updateSimpleNodeLayout(element);
+    tryEmbed(element);
+    if (element.get('type') === 'sf.SequenceActivation') {
+      snapActivationToLifeline(element);
+    }
+  } catch (err) {
+    console.warn('SF Diagrams: Touch drop failed:', err);
+  }
 }

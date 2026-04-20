@@ -167,10 +167,9 @@ export function init(_modules) {
     if (modules.canvas.refreshIcons) modules.canvas.refreshIcons();
   });
 
-  // Stencil toggle
-  btn('btn-toggle-stencil').addEventListener('click', (evt) => {
+  // Stencil toggle (class state managed by stencil module)
+  btn('btn-toggle-stencil').addEventListener('click', () => {
     modules.stencil.toggle();
-    evt.currentTarget.classList.toggle('sf-toolbar__button--active');
   });
 
   // Load modal close
