@@ -1105,6 +1105,27 @@ export function setViewport({ zoom, translate } = {}) {
 let _lineStyleObserver = null;
 let _lineStyleSyncId = 0;
 
+// A mutation only matters to the overlay systems if it touches something
+// other than an overlay path — the overlays themselves shouldn't trigger
+// another re-sync.
+function mutationsAffectRealLinks(mutations) {
+  for (const m of mutations) {
+    for (const n of m.addedNodes) {
+      if (n.nodeType !== 1) continue;
+      const cls = n.getAttribute?.('class') || '';
+      if (cls === 'sf-flow-overlay' || cls === 'sf-line-style-overlay') continue;
+      return true;
+    }
+    for (const n of m.removedNodes) {
+      if (n.nodeType !== 1) continue;
+      const cls = n.getAttribute?.('class') || '';
+      if (cls === 'sf-flow-overlay' || cls === 'sf-line-style-overlay') continue;
+      return true;
+    }
+  }
+  return false;
+}
+
 function scheduleLineStyleSync() {
   if (_lineStyleSyncId) return;
   _lineStyleSyncId = requestAnimationFrame(() => {
@@ -1159,7 +1180,15 @@ export function startLineStyleOverlays() {
   const target = document.querySelector('#paper svg .joint-viewport')
               || document.querySelector('#paper svg');
   if (!target) return;
-  _lineStyleObserver = new MutationObserver(() => scheduleLineStyleSync());
+  _lineStyleObserver = new MutationObserver((mutations) => {
+    // Ignore mutations caused by either overlay system adding/removing its
+    // own paths. Without this filter the flow-animation observer (toolbar.js)
+    // and this one trigger each other every frame, which destroys and
+    // recreates the flow overlay faster than its CSS animation can advance
+    // — the animation appears frozen on any link that also has a lineStyle.
+    if (!mutationsAffectRealLinks(mutations)) return;
+    scheduleLineStyleSync();
+  });
   _lineStyleObserver.observe(target, { childList: true, subtree: true });
 
   // Re-sync when a link's lineStyle prop changes, or when links are added/removed.

@@ -958,12 +958,35 @@ function startFlowAnimation() {
   const target = document.querySelector('#paper svg .joint-viewport')
               || document.querySelector('#paper svg');
   if (target) {
-    _flowObserver = new MutationObserver(() => {
+    _flowObserver = new MutationObserver((mutations) => {
       if (!_flowActive) return;
+      // Ignore mutations caused by either overlay system. The line-style
+      // overlay in canvas.js observes the same subtree; without this filter
+      // the two systems pingpong every frame and the CSS animation restarts
+      // before it can advance.
+      if (!flowMutationsAffectRealLinks(mutations)) return;
       scheduleFlowSync();
     });
     _flowObserver.observe(target, { childList: true, subtree: true });
   }
+}
+
+function flowMutationsAffectRealLinks(mutations) {
+  for (const m of mutations) {
+    for (const n of m.addedNodes) {
+      if (n.nodeType !== 1) continue;
+      const cls = n.getAttribute?.('class') || '';
+      if (cls === 'sf-flow-overlay' || cls === 'sf-line-style-overlay') continue;
+      return true;
+    }
+    for (const n of m.removedNodes) {
+      if (n.nodeType !== 1) continue;
+      const cls = n.getAttribute?.('class') || '';
+      if (cls === 'sf-flow-overlay' || cls === 'sf-line-style-overlay') continue;
+      return true;
+    }
+  }
+  return false;
 }
 
 function stopFlowAnimation() {
