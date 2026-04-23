@@ -1411,6 +1411,26 @@ export function migrateNodes() {
         joint.shapes.sf.rebuildSeqParticipantPorts?.(el, n);
       }
     }
+    // SequenceActor: the shape defaults hide the lifeline + its hitbox and
+    // ship with an empty port list, so importing a JSON that sets
+    // `showLifeline: true` leaves the actor stuck looking collapsed until the
+    // user toggles visibility in the properties panel — and that toggle
+    // rewrites the port list, which can detach any links still pointing at
+    // the original port IDs. Realize the stored state here so imports and
+    // session restores match what the author saved.
+    if (el.get('type') === 'sf.SequenceActor' && el.get('showLifeline')) {
+      el.attr('lifeline/visibility', 'visible');
+      el.attr('lifelineHitbox/visibility', 'visible');
+      el.attr('lifelineHitbox/magnet', true);
+      // Only seed ports when none were saved — preserves link endpoints when
+      // the JSON already ships the port list.
+      const items = el.prop('ports/items');
+      if (!Array.isArray(items) || items.length === 0) {
+        const n = el.get('lifelinePortCount') || 5;
+        const ratios = el.get('lifelinePortRatios');
+        joint.shapes.sf.rebuildSeqActorPorts?.(el, n, ratios);
+      }
+    }
   }
   // Regenerate icon data URIs so all icons use current normalized viewBoxes
   refreshAllIconHrefs();
