@@ -76,6 +76,24 @@ export function init(_modules) {
     updateSequenceToggleLabels();
   });
 
+  // Sequence Auto Layout — unify port count + align lanes so same-index ports
+  // share the same canvas Y, making connectors parallel.
+  btn('btn-sequence-auto-layout').addEventListener('click', () => {
+    document.getElementById('display-dropdown')?.classList.remove('sf-toolbar__dropdown--open');
+    const plan = modules.canvas.analyzeSequenceLayout();
+    if (plan.status === 'empty') {
+      alert('Add at least two actors or participants with lifelines to use Auto Layout.');
+      return;
+    }
+    const run = () => {
+      modules.history.startBatch();
+      try { modules.canvas.applySequenceAutoLayout(plan); }
+      finally { modules.history.endBatch(); }
+    };
+    if (plan.status === 'ok') { run(); return; }
+    showSequenceAutoLayoutConfirm(plan, run);
+  });
+
   // Auto Layout — Process diagrams use the Mermaid-style hierarchical layout
   // (DFS back-edge detection + longest-path layering + barycentric ordering),
   // which handles cycles and branching far more cleanly than the generic
@@ -417,6 +435,65 @@ function showSaveModal() {
   });
 }
 
+// --- Sequence Auto Layout Confirmation Modal ---
+// Shown when the current port counts differ across lanes (or any lane has
+// custom port ratios) AND there are connectors that might shift. Lists each
+// lane whose port layout will be regenerated so the user can see the impact
+// before committing.
+function showSequenceAutoLayoutConfirm(plan, onConfirm) {
+  document.querySelector('.sf-seq-autolayout-modal')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'sf-save-modal sf-seq-autolayout-modal sf-modal';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+
+  const rows = plan.mismatches.map(m => {
+    const reason = m.hasCustomRatios
+      ? `${m.count} ports, custom spacing`
+      : `${m.count} port${m.count === 1 ? '' : 's'}`;
+    return `
+      <div class="sf-modal__row">
+        <span class="sf-modal__row-name" style="flex:1">${escHtml(m.label)}</span>
+        <span style="color:var(--text-secondary);font-size:12px">${escHtml(reason)} → ${plan.targetCount} evenly-spaced</span>
+      </div>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div class="sf-modal__overlay sf-save-modal__backdrop"></div>
+    <div class="sf-modal__dialog sf-save-modal__dialog">
+      <div class="sf-modal__header">
+        <h2 class="sf-modal__title">Auto Layout may shift connectors</h2>
+        <button class="sf-toolbar__button sf-save-modal__close" aria-label="Close">
+          <svg class="sf-toolbar__icon"><use href="#close"></use></svg>
+        </button>
+      </div>
+      <div class="sf-modal__body">
+        <p style="margin:0 0 12px 0;color:var(--text-secondary);font-size:13px;line-height:1.5">
+          Every lane will be set to <strong>${plan.targetCount} evenly-spaced ports</strong> so connectors between same-index ports become parallel. The lanes below will have their port layout regenerated — existing connectors on those lanes may move vertically.
+        </p>
+        <div class="sf-modal__row-list">${rows}</div>
+      </div>
+      <div class="sf-modal__footer">
+        <button class="sf-modal__btn sf-seq-autolayout-cancel">Cancel</button>
+        <button class="sf-modal__btn sf-modal__btn--primary sf-seq-autolayout-apply">Apply Auto Layout</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.querySelector('.sf-save-modal__backdrop').addEventListener('click', close);
+  overlay.querySelector('.sf-save-modal__close').addEventListener('click', close);
+  overlay.querySelector('.sf-seq-autolayout-cancel').addEventListener('click', close);
+  overlay.querySelector('.sf-seq-autolayout-apply').addEventListener('click', () => {
+    close();
+    onConfirm();
+  });
+}
+
 // --- Mermaid Import Modal ---
 
 function showMermaidImportModal() {
@@ -721,6 +798,10 @@ function updateDisplayMenuVisibility() {
   // separator is needed above this button.
   const seqBottomBtn = document.getElementById('btn-sequence-bottom-labels');
   if (seqBottomBtn) seqBottomBtn.style.display = isSequence ? '' : 'none';
+  const seqSep = document.getElementById('display-sequence-separator');
+  if (seqSep) seqSep.style.display = isSequence ? '' : 'none';
+  const seqAutoBtn = document.getElementById('btn-sequence-auto-layout');
+  if (seqAutoBtn) seqAutoBtn.style.display = isSequence ? '' : 'none';
 
   // Show animate connectors for architecture, process, datamodel, sequence
   const showFlow = type === 'architecture' || type === 'process' || type === 'datamodel' || type === 'sequence';

@@ -1,7 +1,7 @@
 // Tabs — multi-diagram tab management
 // Each tab holds its own graph JSON, viewport, and undo/redo history.
 
-import { escHtml, APP_VERSION, classifyVersionDiff } from './persistence.js?v=1.7.3';
+import { escHtml, APP_VERSION, classifyVersionDiff, normalizeDiagramType } from './persistence.js?v=1.8.0';
 
 let graph, paper, canvasModule, selectionModule, historyModule, persistenceModule, stencilModule;
 let tabListEl;
@@ -36,6 +36,9 @@ export function init(_graph, _paper, _canvas, _selection, _history, _persistence
 
   // + button opens new diagram modal
   document.getElementById('btn-new-tab').addEventListener('click', () => showNewDiagramModal());
+
+  // Trash button opens multi-close modal
+  document.getElementById('btn-close-tabs')?.addEventListener('click', () => showCloseTabsModal());
 
   // Wire up persistence hooks
   persistenceModule.setNewDiagramHandler(() => showNewDiagramModal());
@@ -216,7 +219,7 @@ export function newTab(name = 'Draft', diagramType = 'architecture') {
   saveCurrentTabState();
 
   const id = generateId();
-  tabs.push({ id, name, diagramType, graphJSON: null, viewport: null, dirty: false, lastSavedAt: null, lastSaveType: null });
+  tabs.push({ id, name, diagramType: normalizeDiagramType(diagramType), graphJSON: null, viewport: null, dirty: false, lastSavedAt: null, lastSaveType: null });
   activateTab(id, true);
   render();
   return id;
@@ -313,6 +316,176 @@ function showCloseConfirmModal(tabId, tabName) {
     if (tab) tab.dirty = false;
     doCloseTab(tabId);
   });
+}
+
+function typeIconSvg(diagramType) {
+  let inner;
+  if (diagramType === 'process') {
+    inner = '<circle cx="3" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="7" y="5.5" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="3" cy="8" r="1" fill="currentColor"/><line x1="5.5" y1="8" x2="7" y2="8" stroke="currentColor" stroke-width="1.5"/>';
+  } else if (diagramType === 'sequence') {
+    inner = '<rect x="1" y="1" width="5" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="1" width="5" height="3" rx="0.5" fill="currentColor"/><line x1="3.5" y1="4" x2="3.5" y2="15" stroke="currentColor" stroke-width="0.8" stroke-dasharray="1.5 1"/><line x1="12.5" y1="4" x2="12.5" y2="15" stroke="currentColor" stroke-width="0.8" stroke-dasharray="1.5 1"/><line x1="3.5" y1="8" x2="12.5" y2="8" stroke="currentColor" stroke-width="1"/><polygon points="12.5,8 10.5,7 10.5,9" fill="currentColor"/><line x1="12.5" y1="12" x2="3.5" y2="12" stroke="currentColor" stroke-width="0.8" stroke-dasharray="1.5 1"/><polygon points="3.5,12 5.5,11 5.5,13" fill="currentColor"/>';
+  } else if (diagramType === 'datamodel') {
+    inner = '<rect x="1" y="1" width="6" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="1" width="6" height="3" rx="1" fill="currentColor"/><rect x="9" y="7" width="6" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="7" width="6" height="3" rx="1" fill="currentColor"/><path d="M7 5L9 11" stroke="currentColor" stroke-width="1.2" fill="none"/>';
+  } else if (diagramType === 'gantt') {
+    inner = '<rect x="1" y="2" width="8" height="3" rx="1" fill="currentColor"/><rect x="4" y="7" width="9" height="3" rx="1" fill="currentColor" opacity="0.7"/><rect x="7" y="12" width="6" height="3" rx="1" fill="currentColor" opacity="0.5"/>';
+  } else if (diagramType === 'org') {
+    inner = '<rect x="5" y="1" width="6" height="4" rx="1" fill="currentColor"/><rect x="0.5" y="10" width="6" height="4" rx="1" fill="currentColor" opacity="0.7"/><rect x="9.5" y="10" width="6" height="4" rx="1" fill="currentColor" opacity="0.7"/><path d="M8 5v2H3.5V10M8 7h4.5V10" stroke="currentColor" stroke-width="1" fill="none"/>';
+  } else {
+    inner = '<rect x="1" y="1" width="5" height="5" rx="1"/><rect x="10" y="1" width="5" height="5" rx="1"/><rect x="5.5" y="10" width="5" height="5" rx="1"/><path d="M3.5 6v2h9V6M8 8v2" stroke="currentColor" stroke-width="1" fill="none"/>';
+  }
+  return `<svg class="sf-close-tabs__type-icon" viewBox="0 0 16 16" fill="currentColor">${inner}</svg>`;
+}
+
+function showCloseTabsModal() {
+  if (tabs.length === 0) return;
+
+  document.querySelector('.sf-close-tabs-modal')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'sf-modal sf-close-tabs-modal';
+  overlay.style.zIndex = '3000';
+
+  const rowsHtml = tabs.map(t => {
+    const active = t.id === activeTabId ? ' (active)' : '';
+    const typeLabel = DIAGRAM_TYPES[t.diagramType]?.short || 'Architecture';
+    return `
+      <label class="sf-close-tabs__row" data-tab-id="${escHtml(t.id)}">
+        <input type="checkbox" class="sf-close-tabs__checkbox" data-tab-id="${escHtml(t.id)}" />
+        ${typeIconSvg(t.diagramType)}
+        ${t.dirty ? '<span class="sf-close-tabs__dirty" title="Unsaved changes"></span>' : ''}
+        <span class="sf-close-tabs__name">${escHtml(t.name)}${active}</span>
+        <span class="sf-close-tabs__badge">${escHtml(typeLabel)}</span>
+      </label>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div class="sf-modal__overlay"></div>
+    <div class="sf-modal__dialog">
+      <div class="sf-modal__header">
+        <h2 class="sf-modal__title">Close Multiple Tabs</h2>
+      </div>
+      <div class="sf-modal__body" style="padding:var(--spacing-md) var(--spacing-lg)">
+        <p style="margin:0 0 var(--spacing-sm);color:var(--text-secondary);font-size:var(--font-size-sm)">
+          Select the tabs you want to close.
+        </p>
+        <div class="sf-close-tabs__list">
+          <label class="sf-close-tabs__row sf-close-tabs__row--header">
+            <input type="checkbox" class="sf-close-tabs__checkbox" data-role="select-all" />
+            <span class="sf-close-tabs__name">Select all</span>
+          </label>
+          ${rowsHtml}
+        </div>
+      </div>
+      <div style="display:flex;gap:var(--spacing-sm);padding:var(--spacing-sm) var(--spacing-lg) var(--spacing-md);justify-content:flex-end">
+        <button class="sf-close-tabs__btn" data-action="cancel">Cancel</button>
+        <button class="sf-close-tabs__btn sf-close-tabs__btn--primary" data-action="close" disabled>Close Selected</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.querySelector('.sf-modal__overlay').addEventListener('click', close);
+  overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
+
+  const selectAllEl = overlay.querySelector('[data-role="select-all"]');
+  const rowBoxes = Array.from(overlay.querySelectorAll('.sf-close-tabs__checkbox[data-tab-id]'));
+  const closeBtn = overlay.querySelector('[data-action="close"]');
+
+  const updateState = () => {
+    const checked = rowBoxes.filter(b => b.checked);
+    closeBtn.disabled = checked.length === 0;
+    closeBtn.textContent = checked.length > 1 ? `Close Selected (${checked.length})` : 'Close Selected';
+    if (checked.length === 0) {
+      selectAllEl.checked = false;
+      selectAllEl.indeterminate = false;
+    } else if (checked.length === rowBoxes.length) {
+      selectAllEl.checked = true;
+      selectAllEl.indeterminate = false;
+    } else {
+      selectAllEl.checked = false;
+      selectAllEl.indeterminate = true;
+    }
+  };
+
+  selectAllEl.addEventListener('change', () => {
+    rowBoxes.forEach(b => { b.checked = selectAllEl.checked; });
+    updateState();
+  });
+  rowBoxes.forEach(b => b.addEventListener('change', updateState));
+
+  // Clicking the row (outside the native label-to-input propagation edge cases)
+  // — rely on default label click behaviour, but make sure checkbox doesn't double-fire.
+  overlay.querySelectorAll('.sf-close-tabs__row[data-tab-id]').forEach(row => {
+    row.addEventListener('click', (e) => {
+      // The <label> already forwards clicks to the checkbox; just stop propagation
+      // from the checkbox itself so it doesn't trigger twice.
+      if (e.target.tagName === 'INPUT') e.stopPropagation();
+    });
+  });
+
+  closeBtn.addEventListener('click', () => {
+    const selectedIds = rowBoxes.filter(b => b.checked).map(b => b.dataset.tabId);
+    if (selectedIds.length === 0) return;
+    const dirtyIds = selectedIds.filter(id => tabs.find(t => t.id === id)?.dirty);
+    if (dirtyIds.length > 0) {
+      showMultiDiscardConfirm(
+        dirtyIds.length,
+        () => { close(); performMultiClose(selectedIds); },
+        () => {
+          close();
+          persistenceModule.saveMultipleTabs(dirtyIds);
+          performMultiClose(selectedIds);
+        }
+      );
+    } else {
+      close();
+      performMultiClose(selectedIds);
+    }
+  });
+}
+
+function performMultiClose(ids) {
+  // Mark all selected tabs as non-dirty so doCloseTab proceeds without prompting.
+  for (const id of ids) {
+    const tab = tabs.find(t => t.id === id);
+    if (tab) tab.dirty = false;
+  }
+  // Close in reverse so splice indices stay stable and we don't churn the active tab.
+  // If the active tab is in the set, doCloseTab will switch to the nearest remaining
+  // one each time — which is the right behaviour.
+  for (const id of [...ids]) {
+    if (tabs.some(t => t.id === id)) doCloseTab(id);
+  }
+}
+
+function showMultiDiscardConfirm(dirtyCount, onDiscard, onSaveAndClose) {
+  const overlay = document.createElement('div');
+  overlay.className = 'sf-modal';
+  overlay.style.zIndex = '3100';
+  overlay.innerHTML = `
+    <div class="sf-modal__overlay"></div>
+    <div class="sf-modal__dialog" style="width:460px">
+      <div class="sf-modal__header">
+        <h2 class="sf-modal__title">Unsaved Changes</h2>
+      </div>
+      <div class="sf-modal__body" style="padding:var(--spacing-md) var(--spacing-lg)">
+        <p style="margin:0;color:var(--text-secondary);font-size:var(--font-size-sm);line-height:1.5">
+          <strong style="color:var(--text-primary)">${dirtyCount}</strong> of the selected tabs ${dirtyCount === 1 ? 'has' : 'have'} unsaved changes. Save to Browser Storage first, or close without saving?
+        </p>
+      </div>
+      <div style="display:flex;gap:var(--spacing-sm);padding:var(--spacing-sm) var(--spacing-lg) var(--spacing-md);justify-content:flex-end">
+        <button class="sf-close-tabs__btn" data-action="cancel">Cancel</button>
+        <button class="sf-close-tabs__btn" data-action="save">Save and Close</button>
+        <button class="sf-close-tabs__btn sf-close-tabs__btn--primary" data-action="confirm">Close Anyway</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector('.sf-modal__overlay').addEventListener('click', close);
+  overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
+  overlay.querySelector('[data-action="save"]').addEventListener('click', () => { close(); onSaveAndClose(); });
+  overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => { close(); onDiscard(); });
 }
 
 export function switchTab(id) {
@@ -513,7 +686,7 @@ function doRestoreTabData(data) {
       tabs.push({
         id: t.id,
         name: t.name || 'Draft',
-        diagramType: t.diagramType || 'architecture',
+        diagramType: normalizeDiagramType(t.diagramType),
         graphJSON: t.graphJSON || null,
         viewport: t.viewport || null,
         dirty: t.dirty || (!t.lastSavedAt && t.graphJSON?.cells?.length > 0) || false,
@@ -606,10 +779,11 @@ function showSessionVersionWarning(savedVersion, diff) {
 
     const isMajor = diff === 'major';
     const title = isMajor ? 'Compatibility Warning' : 'Session Restored';
+    const githubLink = `<a href="https://github.com/MateuszDabrowski/diagramforce" target="_blank" rel="noopener" style="color:var(--color-primary)">GitHub</a>`;
     const message = isMajor
       ? `There were significant changes introduced since your last session.
          Your open tabs probably won't load correctly.`
-      : `There have been some changes since your last session, but it should still work.
+      : `There have been some changes (check on ${githubLink}) since your last session, but it should still work.
          If anything looks off, try re-adding the affected elements.`;
     const footerNote = isMajor
       ? `<p style="margin:0;color:var(--text-secondary)">
@@ -635,8 +809,7 @@ function showSessionVersionWarning(savedVersion, diff) {
         <div class="sf-modal__body" style="padding:16px 20px">
           <p style="margin:0 0 12px">
             Diagramforce has been updated from <strong>v${escHtml(savedVersion)}</strong>
-            to <strong>v${escHtml(APP_VERSION)}</strong>
-            (<a href="https://github.com/MateuszDabrowski/diagramforce" target="_blank" rel="noopener" style="color:var(--color-primary)">GitHub</a>).
+            to <strong>v${escHtml(APP_VERSION)}</strong>${isMajor ? ` (${githubLink})` : ''}.
           </p>
           <p style="margin:0${footerNote ? ' 0 12px' : ''};color:var(--text-secondary)">
             ${message}

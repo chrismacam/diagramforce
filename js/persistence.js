@@ -6,7 +6,7 @@ import { GIFEncoder, quantize, applyPalette } from 'https://cdn.jsdelivr.net/npm
 let graph, paper, canvasModule;
 const NAMED_SAVE_PREFIX = 'sfdiag::save::';
 const SAVE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const APP_VERSION = '1.7.4';
+const APP_VERSION = '1.8.0';
 export { APP_VERSION };
 
 // Maximum number of cells to accept from external sources (share URLs, JSON import)
@@ -40,6 +40,22 @@ function sanitizeGraphJSON(graphData) {
 /** HTML-escape a string for safe innerHTML interpolation. */
 export function escHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Map LLM-friendly diagram type aliases to the internal names used by the app. */
+export function normalizeDiagramType(type) {
+  const aliases = {
+    organisation: 'org',
+    organization: 'org',
+    data: 'datamodel',
+    datamodel: 'datamodel',
+    architecture: 'architecture',
+    process: 'process',
+    sequence: 'sequence',
+    gantt: 'gantt',
+    org: 'org',
+  };
+  return aliases[String(type || '').toLowerCase()] || 'architecture';
 }
 
 // Callback invoked after a successful named save (used by tabs to update tab name)
@@ -346,7 +362,7 @@ export async function loadNamedSave(key) {
     if (!ok) return false;
     if (data?.graph) sanitizeGraphJSON(data.graph);
     if (onImportCallback && data?.graph) {
-      const type = data.diagramType || 'architecture';
+      const type = normalizeDiagramType(data.diagramType);
       onImportCallback(name, type, data.graph, data.viewport);
     } else if (data?.graph) {
       canvasModule.setLoadingJSON(true);
@@ -404,7 +420,7 @@ export function importJSON() {
           if (data?.graph) sanitizeGraphJSON(data.graph);
           if (onImportCallback && data?.graph) {
             // Load into a new tab
-            const type = data.diagramType || 'architecture';
+            const type = normalizeDiagramType(data.diagramType);
             onImportCallback(name, type, data.graph, data.viewport);
           } else if (data?.graph) {
             // Fallback: load into current canvas
@@ -847,7 +863,8 @@ export async function loadFromURL() {
 
     // Import the diagram using the existing import handler
     if (onImportCallback) {
-      onImportCallback(data.name || 'Shared Diagram', data.type, data.graph, data.viewport || null);
+      const type = normalizeDiagramType(data.type);
+      onImportCallback(data.name || 'Shared Diagram', type, data.graph, data.viewport || null);
       return true;
     }
     return false;

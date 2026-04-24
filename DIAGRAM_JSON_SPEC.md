@@ -7,7 +7,7 @@
 ```json
 {
   "version": 1,
-  "appVersion": "1.7.1",
+  "appVersion": "1.8.0",
   "timestamp": 1712700000000,
   "title": "My Diagram",
   "diagramType": "architecture",
@@ -24,12 +24,14 @@
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `version` | number | Yes | Always `1` |
-| `appVersion` | string | Yes | Semver string, currently `"1.7.1"` |
+| `appVersion` | string | Yes | Semver string, currently `"1.8.0"` |
 | `timestamp` | number | No | Unix timestamp in milliseconds |
 | `title` | string | Yes | Diagram name (shown as tab title) |
-| `diagramType` | string | Yes | One of: `"architecture"`, `"process"`, `"data"`, `"organisation"`, `"gantt"`, `"sequence"` |
+| `diagramType` | string | Yes | One of: `"architecture"`, `"process"`, `"datamodel"`, `"org"`, `"gantt"`, `"sequence"`. **Must match the shapes you use** (see [Diagram Types](#diagram-types)). Aliases `"data"`/`"organisation"` are accepted but the canonical forms are `"datamodel"` and `"org"` |
 | `graph` | object | Yes | Contains `cells` array — the JointJS graph data |
 | `viewport` | object | No | Pan/zoom state. Omit to auto-fit on load |
+
+> ⚠️ **Always set `diagramType` to match the shapes in the diagram.** If it is missing or wrong, the diagram opens as an architecture tab — the sequence-specific Auto Layout, the data-model stencil, the Gantt timeline controls, etc. are gated on the tab type and will be unavailable until the tab is recreated. Pick the type from the table below **before** choosing shapes.
 
 ## Diagram Types
 
@@ -37,8 +39,8 @@
 |------|---------|----------------|
 | `architecture` | System architecture, integrations | SimpleNode, Container, Zone, Note, TextLabel |
 | `process` | BPMN workflows, flowcharts | BpmnEvent, BpmnTask, BpmnGateway, BpmnSubprocess, BpmnPool, Flow* shapes |
-| `data` | ERDs, Salesforce object models | DataObject |
-| `organisation` | Org charts, team structures | OrgPerson, Container, Zone |
+| `datamodel` | ERDs, Salesforce object models | DataObject |
+| `org` | Org charts, team structures | OrgPerson, Container, Zone |
 | `gantt` | Project timelines | GanttTimeline, GanttTask, GanttMilestone, GanttGroup, GanttMarker |
 | `sequence` | UML sequence diagrams, message flows | SequenceParticipant, SequenceActor, SequenceActivation, SequenceFragment |
 
@@ -499,7 +501,7 @@ No ports.
 
 Database table / Salesforce object with coloured header and dynamic field rows. Used in data model diagrams.
 
-**Default size:** `260 x 80` (height auto-adjusts: ~32px header + 24px per field)
+**Default size:** `260 x 80` (height auto-adjusts: 32px header + 22px per field + 4px padding)
 
 ```json
 {
@@ -546,7 +548,9 @@ Database table / Salesforce object with coloured header and dynamic field rows. 
   "ports": {
     "groups": {
       "top":    { "position": { "name": "top" },    "attrs": { "circle": { "r": 5, "magnet": true, "fill": "var(--port-color, #1D73C9)", "stroke": "#FFFFFF", "strokeWidth": 1.5 } }, "markup": [{ "tagName": "circle", "selector": "circle" }] },
-      "bottom": { "position": { "name": "bottom" }, "attrs": { "circle": { "r": 5, "magnet": true, "fill": "var(--port-color, #1D73C9)", "stroke": "#FFFFFF", "strokeWidth": 1.5 } }, "markup": [{ "tagName": "circle", "selector": "circle" }] }
+      "bottom": { "position": { "name": "bottom" }, "attrs": { "circle": { "r": 5, "magnet": true, "fill": "var(--port-color, #1D73C9)", "stroke": "#FFFFFF", "strokeWidth": 1.5 } }, "markup": [{ "tagName": "circle", "selector": "circle" }] },
+      "fieldLeft":  { "position": { "name": "left" },  "attrs": { "circle": { "r": 4, "magnet": true, "fill": "var(--port-color, #1D73C9)", "stroke": "#FFFFFF", "strokeWidth": 1 } }, "markup": [{ "tagName": "circle", "selector": "circle" }] },
+      "fieldRight": { "position": { "name": "right" }, "attrs": { "circle": { "r": 4, "magnet": true, "fill": "var(--port-color, #1D73C9)", "stroke": "#FFFFFF", "strokeWidth": 1 } }, "markup": [{ "tagName": "circle", "selector": "circle" }] }
     },
     "items": [
       { "id": "port-top",    "group": "top" },
@@ -576,9 +580,18 @@ Database table / Salesforce object with coloured header and dynamic field rows. 
 | `showFieldLengths` | `false` | Show `(length)` suffix next to the type |
 | `keyFieldsOnly` | `false` | When `true`, only fields with `keyType` (PK/FK) are rendered; the object height shrinks to fit |
 
-**Sizing rule:** Set height to `32 + (fields.length * 24)`. The custom view auto-renders field rows.
+**Sizing rule:** Set height to `32 + (max(visibleFields, 1) * 22) + 4`. The custom view auto-renders field rows. `visibleFields` equals `fields.length` unless `keyFieldsOnly` is `true`, in which case only fields with `keyType` are counted.
 
-**Linking DataObjects for ER diagrams:** Use `port-top` and `port-bottom` for connections. Apply ER markers (see Marker Types section) to represent cardinality.
+**Linking DataObjects for ER diagrams:**
+
+Two port conventions:
+
+1. **Object-level ports (`port-top`, `port-bottom`)** — pre-seeded in `ports.items`. Use for "this table relates to that table" links.
+2. **Field-level ports (`field-left-{i}`, `field-right-{i}`)** — dynamically created by the view for every field with a `keyType` (`pk` or `fk`). The `{i}` is the field's zero-based index in the original `fields` array (stable even when `keyFieldsOnly` hides non-key rows). Prefer these for PK→FK relationships so the line anchors to the actual row.
+
+Do NOT list field-level ports in `ports.items` — they are generated at render time. Just reference them from link endpoints: `"source": { "id": "obj-contact", "port": "field-right-0" }`.
+
+Apply ER markers (see Marker Types section) to represent cardinality.
 
 ### sf.OrgPerson
 
@@ -955,15 +968,29 @@ Today marker (triangle).
 
 ### Sequence Shapes
 
-Sequence diagrams model ordered interactions between participants across time. Layout is inherently precise: participant centers are spaced horizontally, messages flow top-to-bottom at exact Y coordinates, and the arrow endpoints are anchored by `dy` (not snapped to ports).
+Sequence diagrams model ordered interactions between participants across time. **Connect messages through lifeline ports** (not `topLeft` anchors): each lane exposes `lifelinePortCount` evenly-spaced port pairs (`seq-port-left-<i>` / `seq-port-right-<i>`), and messages reference those port IDs directly. Port-based connections stay aligned under future edits, are easy for a human to rewire in the UI, and work out-of-the-box with the **Display → Auto Layout** action.
 
 **Layout conventions**
 
 - Participants sit side-by-side at `y = 40`. Center-to-center spacing is typically `220`.
-- The lifeline runs down the horizontal center of each participant / actor. Message links must anchor to that center using `topLeft` anchors with `dx = width / 2` and `dy = messageY`.
-- Messages advance vertically in ~`48px` steps starting at `y = 120`.
-- Activation boxes (`sf.SequenceActivation`) overlay the lifeline between `activate` / `deactivate` points. They always use `z = 2200` so they render above the dashed lifeline but below message links.
+- Each lane (Participant, or Actor with `showLifeline: true`) carries `lifelinePortCount` port pairs along its lifeline. Pick a count ≥ the number of messages that lane will receive; `10` is a reasonable default for realistic diagrams.
+- Messages are `standard.Link` instances whose `source` / `target` specify `{ id, port }` — e.g. `source.port: "seq-port-right-2"` on the left lane connects to `target.port: "seq-port-left-2"` on the right lane. The port index determines the vertical position of the message.
+- Activation boxes (`sf.SequenceActivation`) overlay the lifeline between activate / deactivate points. They always use `z = 2200` so they render above the dashed lifeline but below message links.
 - Fragment boxes (`sf.SequenceFragment`) use `z = 500` so they render behind participants and messages.
+
+**Port alignment across lanes**
+
+For same-index ports on different lanes to sit at the same canvas Y (so messages render as flat horizontal lines), three properties must match across every lane:
+
+1. **Same `lifelinePortCount`** on every Participant and on every Actor with `showLifeline: true`.
+2. **Same lifeline start Y.** Ports are laid out from the top of the lifeline, not the top of the element. For `sf.SequenceParticipant` the lifeline begins `48px` below `position.y` (header height). For `sf.SequenceActor` it begins `92px` below `position.y` (stick figure + label block). So an actor needs `position.y = participant.position.y - 44` to keep their lifelines at the same canvas Y.
+3. **Same lifeline span.** `size.height - headerOffset - bottomOffset` must match. `headerOffset/bottomOffset` are `48/48` for Participant and `92/0` for Actor. With a target span `Sp`, set Participant height to `Sp + 96` and Actor height to `Sp + 92`.
+
+The port Y formula is `lifelineStart + ((i + 1) / (portCount + 1)) * lifelineSpan` in canvas coordinates, so aligning those three values gives pixel-perfect parallel connectors at every index.
+
+The **Display → Auto Layout** action does this automatically: it picks the largest existing port count, the median lifeline start Y, and the largest lifeline span, then repositions/resizes every lane and rebuilds its ports with even spacing. If any lane has a different port count or custom `lifelinePortRatios` (and the diagram already has connectors), a confirmation modal lists those lanes so you can see which ones will have their ports regenerated before committing.
+
+**Ports are rebuilt on import.** The load pipeline calls `rebuildSeqParticipantPorts` / `rebuildSeqActorPorts` using each cell's stored `lifelinePortCount` (and `showLifeline` for actors), so LLM-generated JSON only needs to set `lifelinePortCount` — you don't need to serialize the `ports.items` array.
 
 #### sf.SequenceParticipant
 
@@ -1088,9 +1115,9 @@ UML fragment box (loop / alt / opt / par / critical / break) with a pentagonal l
 
 ### Sequence Message Links
 
-Sequence messages are `standard.Link` instances that use `topLeft` anchors with an explicit `dy` to attach at a precise Y on each lifeline. They intentionally do **not** use ports — the 5 discrete lifeline ports in the shape exist for interactive editing only.
+Sequence messages are `standard.Link` instances that connect port-to-port between lanes. The **port index = message slot**: message #1 hooks into `seq-port-*-0` on both lanes, message #2 into `seq-port-*-1`, and so on. A "left-to-right" request leaves the source lane's `seq-port-right-<i>` and enters the target lane's `seq-port-left-<i>`; a reply goes the other way (`seq-port-left-<i>` → `seq-port-right-<i>`).
 
-When a user draws an interactive link from the `seq-left` port of one element to the `seq-right` port of another (the "right-to-left" direction in UML), the app automatically sets `lineStyle: "6 4"` on the link to follow the UML reply/return convention. This only runs on initial drop, so manually editing a link's style is preserved.
+When a user draws an interactive link from a `seq-left` port to a `seq-right` port (the "right-to-left" UML reply direction), the app automatically sets `lineStyle: "6 4"` on the link. For generated JSON, set that property yourself on replies so they render dashed.
 
 | Operator | `style` | `arrow` | Visual |
 |----------|---------|---------|--------|
@@ -1107,15 +1134,8 @@ When a user draws an interactive link from the `seq-left` port of one element to
   "id": "msg-1",
   "type": "standard.Link",
   "z": 3000,
-  "source": {
-    "id": "part-sf",
-    "anchor": { "name": "topLeft", "args": { "dx": 70, "dy": 140 } }
-  },
-  "target": {
-    "id": "part-api",
-    "anchor": { "name": "topLeft", "args": { "dx": 70, "dy": 140 } }
-  },
-  "connectionPoint": { "name": "anchor" },
+  "source": { "id": "part-sf",  "port": "seq-port-right-0" },
+  "target": { "id": "part-api", "port": "seq-port-left-0" },
   "router":    { "name": "normal" },
   "connector": { "name": "normal" },
   "attrs": {
@@ -1138,8 +1158,11 @@ When a user draws an interactive link from the `seq-left` port of one element to
 }
 ```
 
-For a dashed response, set top-level `lineStyle` on the link to `"6 4"` (the app renders the dashes as a bg-coloured overlay so the arrow marker stays solid on Safari).
+For a dashed response, set top-level `lineStyle` on the link to `"6 4"` (the app renders the dashes as a bg-coloured overlay so the arrow marker stays solid on Safari). Replies also typically swap direction: `source.port: "seq-port-left-<i>"` → `target.port: "seq-port-right-<i>"`.
+
 For an async open arrow, replace `targetMarker.d` with `"M -14 -6 L 0 0 L -14 6"` and add `"fill": "none", "stroke": "#5E6B7A", "stroke-width": 2`.
+
+**Legacy topLeft anchors still load.** Existing diagrams that use `anchor: { name: "topLeft", args: { dx, dy } }` will continue to render correctly, and the Auto Layout action compensates anchor `dy` values when it repositions lanes so those messages stay horizontal. New LLM-generated diagrams should prefer ports.
 
 ---
 
@@ -1152,7 +1175,7 @@ A simple 3-node architecture with one container:
 ```json
 {
   "version": 1,
-  "appVersion": "1.7.1",
+  "appVersion": "1.8.0",
   "timestamp": 1712700000000,
   "title": "Simple Architecture",
   "diagramType": "architecture",
@@ -1308,10 +1331,10 @@ Two related Salesforce objects with ER notation:
 ```json
 {
   "version": 1,
-  "appVersion": "1.7.1",
+  "appVersion": "1.8.0",
   "timestamp": 1712700000000,
   "title": "Account-Contact ERD",
-  "diagramType": "data",
+  "diagramType": "datamodel",
   "graph": {
     "cells": [
       {
@@ -1423,12 +1446,12 @@ Two related Salesforce objects with ER notation:
 
 ### Sequence Diagram
 
-A two-participant sync exchange with an activation box and an `alt` fragment. Participant centers are 220px apart; messages advance in 48px steps from `y = 120`.
+A two-participant sync exchange with an activation box and an `alt` fragment. Messages are port-based: both participants carry `lifelinePortCount: 10`, so `seq-port-*-0` is the first message slot, `seq-port-*-1` the second, etc.
 
 ```json
 {
   "version": 1,
-  "appVersion": "1.7.1",
+  "appVersion": "1.8.0",
   "title": "Account Lookup",
   "diagramType": "sequence",
   "graph": {
@@ -1440,6 +1463,8 @@ A two-participant sync exchange with an activation box and an `alt` fragment. Pa
         "size": { "width": 140, "height": 360 },
         "z": 2000,
         "participantRole": "salesforce",
+        "lifelinePortCount": 10,
+        "showBottomLabel": true,
         "attrs": {
           "header":       { "stroke": "#2E844A" },
           "headerAccent": { "fill":   "#2E844A" },
@@ -1455,6 +1480,8 @@ A two-participant sync exchange with an activation box and an `alt` fragment. Pa
         "size": { "width": 140, "height": 360 },
         "z": 2000,
         "participantRole": "api",
+        "lifelinePortCount": 10,
+        "showBottomLabel": true,
         "attrs": {
           "header":       { "stroke": "#1D73C9" },
           "headerAccent": { "fill":   "#1D73C9" },
@@ -1491,9 +1518,8 @@ A two-participant sync exchange with an activation box and an `alt` fragment. Pa
         "id": "msg-1",
         "type": "standard.Link",
         "z": 3000,
-        "source": { "id": "part-sf",  "anchor": { "name": "topLeft", "args": { "dx": 70, "dy": 130 } } },
-        "target": { "id": "part-api", "anchor": { "name": "topLeft", "args": { "dx": 70, "dy": 130 } } },
-        "connectionPoint": { "name": "anchor" },
+        "source": { "id": "part-sf",  "port": "seq-port-right-2" },
+        "target": { "id": "part-api", "port": "seq-port-left-2" },
         "router":    { "name": "normal" },
         "connector": { "name": "normal" },
         "attrs": {
@@ -1512,9 +1538,8 @@ A two-participant sync exchange with an activation box and an `alt` fragment. Pa
         "id": "msg-2",
         "type": "standard.Link",
         "z": 3000,
-        "source": { "id": "part-api", "anchor": { "name": "topLeft", "args": { "dx": 70, "dy": 210 } } },
-        "target": { "id": "part-sf",  "anchor": { "name": "topLeft", "args": { "dx": 70, "dy": 210 } } },
-        "connectionPoint": { "name": "anchor" },
+        "source": { "id": "part-api", "port": "seq-port-left-3" },
+        "target": { "id": "part-sf",  "port": "seq-port-right-3" },
         "router":    { "name": "normal" },
         "connector": { "name": "normal" },
         "lineStyle": "6 4",

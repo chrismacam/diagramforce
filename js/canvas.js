@@ -2084,3 +2084,136 @@ export function autoLayout(direction) {
 
   fitContent();
 }
+
+// ── Sequence Auto Layout ─────────────────────────────────────────────
+// Unifies port count across every lane (SequenceParticipant + SequenceActor
+// with lifeline shown) and aligns them vertically so same-index ports share
+// the same canvas Y — connectors between e.g. "port 3" on different lanes
+// become perfectly parallel.
+//
+// Port formulas (see js/shapes.js):
+//   Participant: Py(i) = 48 + r_i * (h - 96)         [topOffset=48, botOffset=48]
+//   Actor:       Py(i) = 92 + r_i * (h - 92)         [topOffset=92, botOffset=0]
+// With r_i = (i+1)/(n+1). To align across lanes we need common
+//   Ls = pos.y + topOffset       (lifeline start canvas Y)
+//   Sp = h - topOffset - botOffset  (lifeline span)
+//   n  = lifelinePortCount
+const SEQ_LANE_GEO = {
+  'sf.SequenceParticipant': { top: 48, bottom: 48 },
+  'sf.SequenceActor':       { top: 92, bottom: 0  },
+};
+
+function _getSequenceLanes() {
+  return graph.getElements().filter(el => {
+    const t = el.get('type');
+    if (t === 'sf.SequenceParticipant') return true;
+    if (t === 'sf.SequenceActor' && el.get('showLifeline') === true) return true;
+    return false;
+  });
+}
+
+function _laneLabel(el) {
+  const txt = el.attr('label/text') || el.attr('labelBottom/text') || '';
+  return String(txt).trim() || '(unnamed lane)';
+}
+
+export function analyzeSequenceLayout() {
+  const lanes = _getSequenceLanes();
+  if (lanes.length < 2) {
+    return { status: 'empty', lanes: [], mismatches: [] };
+  }
+  const info = lanes.map(el => {
+    const t = el.get('type');
+    const geo = SEQ_LANE_GEO[t];
+    const pos = el.position();
+    const size = el.size();
+    const count = el.get('lifelinePortCount') || 5;
+    const ratios = el.get('lifelinePortRatios');
+    const hasCustomRatios = Array.isArray(ratios) && ratios.length === count;
+    return {
+      id: el.id,
+      cell: el,
+      type: t,
+      label: _laneLabel(el),
+      count,
+      hasCustomRatios,
+      top: geo.top,
+      bottom: geo.bottom,
+      ls: pos.y + geo.top,
+      sp: size.height - geo.top - geo.bottom,
+    };
+  });
+
+  const counts = info.map(l => l.count);
+  const targetCount = Math.max(...counts);
+  const sorted = [...info.map(l => l.ls)].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const targetLs = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const targetSp = Math.max(...info.map(l => l.sp));
+
+  const mismatches = info
+    .filter(l => l.count !== targetCount || l.hasCustomRatios)
+    .map(l => ({ id: l.id, label: l.label, count: l.count, hasCustomRatios: l.hasCustomRatios }));
+
+  const hasLinks = graph.getLinks().length > 0;
+  const status = (mismatches.length > 0 && hasLinks) ? 'would-change' : 'ok';
+
+  return {
+    status,
+    lanes: info,
+    targetCount,
+    targetLs: Math.round(targetLs),
+    targetSp: Math.round(targetSp),
+    mismatches,
+  };
+}
+
+export function applySequenceAutoLayout(plan) {
+  if (!plan || !plan.lanes || plan.lanes.length < 2) return;
+  const { lanes, targetCount, targetLs, targetSp } = plan;
+
+  // Per-lane Y delta (how far each lane's top-left moves down).
+  const laneDy = new Map();
+  for (const l of lanes) {
+    laneDy.set(l.id, (targetLs - l.top) - l.cell.position().y);
+  }
+
+  // Spec-style diagrams (as documented in DIAGRAM_JSON_SPEC.md and produced
+  // by LLMs) anchor messages to lanes via `topLeft` + fixed `dy`. The anchor
+  // resolves to `pos.y + dy` in canvas coords, so shifting a lane would shift
+  // every message attached to it. Compensate by subtracting the lane's move
+  // from each topLeft anchor so message canvas Y stays put.
+  const laneIds = new Set(lanes.map(l => l.id));
+  for (const link of graph.getLinks()) {
+    for (const endKey of ['source', 'target']) {
+      const end = link.get(endKey);
+      if (!end || !end.id || !laneIds.has(end.id)) continue;
+      const anchor = end.anchor;
+      if (!anchor || anchor.name !== 'topLeft') continue;
+      const dy = laneDy.get(end.id) || 0;
+      if (dy === 0) continue;
+      const curDy = anchor.args?.dy || 0;
+      link.prop([endKey, 'anchor', 'args', 'dy'], curDy - dy);
+    }
+  }
+
+  // Move + resize lanes. Use `position()` (non-cascading) so embedded
+  // activations keep their canvas Y — their role is to mark when a lane is
+  // "active" at a specific message timing, which must stay put to match the
+  // compensated message anchors above.
+  for (const l of lanes) {
+    const dy = laneDy.get(l.id) || 0;
+    const curPos = l.cell.position();
+    const newH = targetSp + l.top + l.bottom;
+    if (dy !== 0) l.cell.position(curPos.x, curPos.y + dy);
+    const curSize = l.cell.size();
+    if (Math.abs(curSize.height - newH) > 0.5) {
+      l.cell.resize(curSize.width, newH);
+    }
+    if (l.type === 'sf.SequenceParticipant') {
+      joint.shapes.sf.rebuildSeqParticipantPorts(l.cell, targetCount);
+    } else {
+      joint.shapes.sf.rebuildSeqActorPorts(l.cell, targetCount);
+    }
+  }
+}
