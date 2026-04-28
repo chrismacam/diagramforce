@@ -1,0 +1,36 @@
+{
+    "id": "94b3bff6-f892-4386-a1ff-f0ec64feed71",
+    "type": "APIEvent",
+    "name": "[JOURNEY] - BOAS VINDAS",
+    "description": "",
+    "createdDate": "2023-05-29T07:14:34.06",
+    "createdBy": 710302622,
+    "modifiedDate": "2023-05-29T07:37:02.02",
+    "modifiedBy": 710302622,
+    "mode": "Production",
+    "eventDefinitionKey": "APIEvent-687778e2-62b0-8bcd-b535-6ba507da8753",
+    "dataExtensionId": "6a46475b-25fe-ed11-b866-f40343c98788",
+    "dataExtensionName": "Jornada Boas Vindas",
+    "sourceApplicationExtensionId": "7db1f972-f8b7-49b6-91b5-fa218e13953d",
+    "filterDefinitionId": "00000000-0000-0000-0000-000000000000",
+    "filterDefinitionTemplate": "",
+    "iconUrl": "/images/icon_journeyBuilder-event-api-blue.svg",
+    "arguments": {
+        "serializedObjectType": 11,
+        "eventDefinitionId": "94b3bff6-f892-4386-a1ff-f0ec64feed71",
+        "eventDefinitionKey": "APIEvent-687778e2-62b0-8bcd-b535-6ba507da8753",
+        "dataExtensionId": "6a46475b-25fe-ed11-b866-f40343c98788",
+        "automationId": "00000000-0000-0000-0000-000000000000",
+        "criteria": ""
+    },
+    "metaData": {
+        "scheduleState": "No Schedule"
+    },
+    "interactionCount": 1,
+    "isVisibleInPicker": false,
+    "isPlatformObject": false,
+    "category": "Event",
+    "publishedInteractionCount": 1,
+    "automationId": "00000000-0000-0000-0000-000000000000",
+    "disableDEDataLogging": false
+}

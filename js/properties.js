@@ -15,6 +15,7 @@ import {
   countExternalConnectedConnectors,
 } from './clipboard.js?v=1.8.0';
 import * as history from './history.js?v=1.8.0';
+import * as governance from './governance.js?v=1.8.0';
 
 /**
  * Wrap a callback so every mutation inside it (potentially many
@@ -1033,6 +1034,25 @@ function renderSimpleNodeProps(cell) {
   });
   addIconPicker(content, 'Icon', cell.attr('icon/href'), v => { cell.attr('icon/href', v); updateSimpleNodeLayout(cell); },
     () => resolveColor(cell.attr('label/fill')) || getComputedStyle(document.documentElement).getPropertyValue('--node-text').trim() || '#1C1E21');
+
+  if (cell.get('assetType')) {
+    const meta = section(bodyEl, 'SFMC Governance');
+    addSelect(meta, 'Asset Type', cell.get('assetType'), [
+      { value: 'DataExtension', label: 'Data Extension' },
+      { value: 'Automation', label: 'Automation' },
+      { value: 'SQL', label: 'SQL Query' },
+      { value: 'SSJS', label: 'SSJS Script' },
+      { value: 'Journey', label: 'Journey' },
+      { value: 'CloudPage', label: 'CloudPage' },
+      { value: 'API', label: 'API / Endpoint' },
+    ], v => cell.set('assetType', v));
+    addText(meta, 'External Key', cell.get('externalKey') || '', v => cell.set('externalKey', v));
+    addText(meta, 'Business Unit', cell.get('businessUnit') || '', v => cell.set('businessUnit', v));
+    addText(meta, 'Folder / Category', cell.get('folderCategory') || '', v => cell.set('folderCategory', v));
+    addTextarea(meta, 'Asset Description', cell.get('assetDescription') || '', v => cell.set('assetDescription', v));
+    addTextarea(meta, 'Code / Configuration', cell.get('assetContent') || '', v => cell.set('assetContent', v));
+    addGovernancePrompt(meta, cell);
+  }
 
   // Appearance
   const appearance = section(bodyEl, 'Appearance');
@@ -3323,6 +3343,24 @@ function addTextarea(parent, label, value, onChange) {
   autoSize();
   ta.addEventListener('input', () => { onChange(ta.value); autoSize(); });
   f.appendChild(ta);
+}
+
+function addGovernancePrompt(parent, cell) {
+  const f = field(parent, 'Prompt Generator');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sf-modal__btn sf-modal__btn--primary';
+  btn.textContent = 'Generate Context Prompt';
+  const output = document.createElement('textarea');
+  output.className = 'sf-properties__input sf-properties__textarea';
+  output.rows = 7;
+  output.readOnly = true;
+  output.style.marginTop = '8px';
+  btn.addEventListener('click', () => {
+    output.value = governance.generatePrompt(cell);
+  });
+  f.appendChild(btn);
+  f.appendChild(output);
 }
 
 function addColor(parent, label, value, onChange) {

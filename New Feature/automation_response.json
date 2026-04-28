@@ -1,0 +1,44 @@
+{
+    "id": "276644de-a04a-4f6a-ab14-1c17cb0e1da0",
+    "name": "dynamicDE_AssetsCreation",
+    "description": "",
+    "key": "460fd97d-f7e5-2a73-0263-298dfdc73fc4",
+    "typeId": 1,
+    "type": "scheduled",
+    "statusId": 2,
+    "status": "Ready",
+    "categoryId": 19835,
+    "schedule": {
+        "scheduleStatus": "none"
+    },
+    "steps": [
+        {
+            "id": "fe197021-5b3d-4492-850e-0f8b6cdea94f",
+            "name": "Create Data Extensions",
+            "step": 1,
+            "activities": [
+                {
+                    "id": "75e90394-c5d8-4276-8336-a756f604d5a7",
+                    "name": "ssjs_DynamicDE_CreateDE",
+                    "activityObjectId": "456e8d0f-19b8-42e8-ac10-f035aebd4f92",
+                    "objectTypeId": 423,
+                    "displayOrder": 1
+                }
+            ]
+        },
+        {
+            "id": "e8640d92-5181-441a-ba40-948526d0ef3c",
+            "name": "Add Fields",
+            "step": 2,
+            "activities": [
+                {
+                    "id": "97b254bc-ab78-4390-a912-de7130f2ad18",
+                    "name": "ssjs_DynamicDE_AddFields",
+                    "activityObjectId": "b0056c5f-2082-411d-9a8c-34754b2112f1",
+                    "objectTypeId": 423,
+                    "displayOrder": 1
+                }
+            ]
+        }
+    ]
+}

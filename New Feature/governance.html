@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFMC PowerNotes Graph</title>
+    <!-- Import D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            /* Theme Variables */
+            --bg-color: #1e1e1e;
+            --panel-bg: rgba(30, 30, 30, 0.95);
+            --text-main: #eee;
+            --text-muted: #aaa;
+            --border-color: #444;
+            --accent-color: #9e95f7;
+
+            /* SFMC Component Colors */
+            --color-de: #58a6ff;     /* Blue */
+            --color-sql: #3fb950;    /* Green */
+            --color-ssjs: #d2a8ff;   /* Purple */
+            --color-journey: #ffa657; /* Orange */
+            --color-auto: #ff7b72;    /* Red */
+            --color-api: #e3b341;     /* Yellow */
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-main);
+        }
+
+        #graph-container { width: 100vw; height: 100vh; cursor: grab; }
+        #graph-container:active { cursor: grabbing; }
+
+        .node { cursor: pointer; stroke: #2d2d2d; stroke-width: 2px; transition: stroke 0.2s, filter 0.2s; }
+        .node:hover { stroke: #ffffff; filter: brightness(1.2); }
+        .node.selected { stroke: #ffffff; stroke-width: 4px; }
+
+        .link { stroke: #666; stroke-opacity: 0.6; fill: none; transition: opacity 0.3s; }
+
+        .label {
+            fill: #c9d1d9; font-size: 12px; pointer-events: none;
+            user-select: none; text-shadow: 1px 1px 3px #000;
+        }
+
+        /* --- NEW: Visual Zones Styles --- */
+        .cluster-zone {
+            pointer-events: none;
+            transition: all 0.5s ease;
+        }
+
+        .cluster-label {
+            fill: rgba(255, 255, 255, 0.4);
+            font-size: 20px;
+            font-weight: bold;
+            text-anchor: middle;
+            pointer-events: none;
+            user-select: none;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.5s ease;
+        }
+        /* --------------------------------- */
+
+        #ui-panel {
+            position: absolute; top: 20px; left: 20px;
+            background: var(--panel-bg); padding: 15px 20px;
+            border-radius: 8px; border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            pointer-events: none; z-index: 10;
+            width: 320px;
+        }
+        #ui-panel h3 { margin: 0 0 5px 0; color: var(--accent-color); }
+        #ui-panel p { margin: 0; font-size: 13px; color: var(--text-muted); }
+
+        .filters {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            pointer-events: auto;
+        }
+        .filter-btn, .group-btn {
+            background: rgba(255,255,255,0.05); color: var(--text-muted);
+            border: 1px solid var(--border-color); border-radius: 4px;
+            padding: 5px 10px; font-size: 11px; cursor: pointer; transition: all 0.2s ease;
+        }
+        .filter-btn:hover, .group-btn:hover { background: rgba(255,255,255,0.15); color: var(--text-main); }
+        .filter-btn.active, .group-btn.active { background: var(--accent-color); color: #111; border-color: var(--accent-color); font-weight: bold; }
+
+        .panel-section-title {
+            font-size: 11px; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 1px; margin: 15px 0 5px 0; border-top: 1px solid var(--border-color); padding-top: 10px;
+        }
+
+        #sidebar {
+            position: absolute; top: 0; right: -500px;
+            width: 500px; height: 100vh;
+            background: var(--panel-bg); border-left: 1px solid var(--border-color);
+            box-shadow: -4px 0 15px rgba(0,0,0,0.5);
+            transition: right 0.3s ease;
+            display: flex; flex-direction: column; z-index: 20;
+        }
+        #sidebar.open { right: 0; }
+
+        .sidebar-header {
+            padding: 20px; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: flex-start;
+        }
+        .sidebar-header h2 { margin: 0; font-size: 20px; word-break: break-all; }
+        .badge {
+            display: inline-block; padding: 3px 8px; border-radius: 12px;
+            font-size: 11px; font-weight: bold; margin-top: 8px; color: #111;
+        }
+        .close-btn { cursor: pointer; color: var(--text-muted); font-size: 20px; border: none; background: none; }
+        .close-btn:hover { color: white; }
+
+        .sidebar-content { padding: 20px; overflow-y: auto; flex-grow: 1; }
+
+        .section { margin-bottom: 25px; }
+        .section h4 { margin: 0 0 10px 0; color: var(--text-muted); text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+
+        .meta-grid { display: grid; grid-template-columns: 100px 1fr; gap: 8px; font-size: 12px; margin-bottom: 15px; }
+        .meta-label { color: var(--text-muted); }
+        .meta-value { color: var(--text-main); word-break: break-all; font-family: monospace; }
+
+        .config-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
+        .config-table th { text-align: left; padding: 6px; background: rgba(255,255,255,0.1); color: var(--text-muted); border-bottom: 1px solid var(--border-color); }
+        .config-table td { padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #ddd; }
+        .config-table tr:hover td { background: rgba(255,255,255,0.05); }
+        .pk-badge { background: var(--accent-color); color: #111; padding: 2px 4px; border-radius: 4px; font-size: 9px; font-weight: bold; }
+
+        .code-block {
+            background: #111; border: 1px solid var(--border-color); padding: 15px;
+            border-radius: 6px; font-family: "Courier New", Courier, monospace;
+            font-size: 11px; color: #d2a8ff; overflow-x: auto; white-space: pre-wrap;
+            max-height: 400px; overflow-y: auto;
+        }
+        .code-block.sql-code { color: var(--color-sql); }
+
+        ul.dependency-list { list-style: none; padding: 0; margin: 0; }
+        ul.dependency-list li {
+            padding: 8px 10px; background: rgba(255,255,255,0.05);
+            margin-bottom: 5px; border-radius: 4px; font-size: 13px;
+            display: flex; justify-content: space-between;
+        }
+        .rel-type { color: var(--text-muted); font-size: 11px; font-style: italic; }
+
+        .btn {
+            width: 100%; padding: 12px; background: var(--accent-color); color: #111;
+            border: none; border-radius: 6px; font-weight: bold; cursor: pointer;
+            transition: background 0.2s; margin-top: 10px;
+        }
+        .btn:hover { filter: brightness(1.1); }
+
+        #prompt-output {
+            width: 100%; height: 120px; margin-top: 10px;
+            background: #111; color: #58a6ff; border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 10px; font-family: monospace; font-size: 12px;
+            resize: vertical; box-sizing: border-box; display: none;
+        }
+
+        #flow-canvas-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: var(--bg-color); z-index: 100;
+            display: none; flex-direction: column;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        #flow-canvas-overlay.active { display: flex; opacity: 1; }
+
+        .flow-header {
+            padding: 20px 30px; background: var(--panel-bg); border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .flow-header h2 { margin: 0; display: flex; align-items: center; gap: 10px; }
+
+        .flow-container {
+            flex-grow: 1; padding: 50px; overflow: auto;
+            display: flex; align-items: center; gap: 40px;
+            background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .auto-step {
+            display: flex; flex-direction: column; gap: 15px;
+            background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px;
+            border: 1px dashed var(--border-color); position: relative; min-width: 200px;
+        }
+        .auto-step::before {
+            content: 'Step ' attr(data-step); position: absolute; top: -10px; left: 10px;
+            background: var(--bg-color); padding: 0 5px; font-size: 11px; color: var(--text-muted);
+        }
+        .auto-step:not(:last-child)::after {
+            content: '→'; position: absolute; right: -30px; top: 50%; transform: translateY(-50%);
+            color: #666; font-size: 24px; font-weight: bold;
+        }
+
+        .activity-card {
+            background: #2d2d2d; padding: 12px 15px; border-radius: 6px;
+            border-left: 4px solid var(--accent-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .activity-type { font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+        .activity-name { font-size: 13px; font-weight: bold; word-wrap: break-word;}
+    </style>
+</head>
+<body>
+    <div id="ui-panel">
+        <h3>SFMC PowerNotes</h3>
+        <p>Live Configuration Mapped from API</p>
+
+        <div class="panel-section-title">Filter By Type</div>
+        <div class="filters">
+            <button class="filter-btn active" data-type="All">All</button>
+            <button class="filter-btn" data-type="DataExtension">Data Extensions</button>
+            <button class="filter-btn" data-type="Automation">Automations</button>
+            <button class="filter-btn" data-type="SQL">SQL Queries</button>
+            <button class="filter-btn" data-type="SSJS">SSJS Scripts</button>
+        </div>
+
+        <!-- NEW: Grouping Engine Controls -->
+        <div class="panel-section-title">Organize Nodes</div>
+        <div class="filters">
+            <button class="group-btn active" data-group="none">Constellation (Default)</button>
+            <button class="group-btn" data-group="folderCategory">By Folder Type</button>
+            <button class="group-btn" data-group="bu">By Business Unit</button>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <!-- ... existing sidebar HTML ... -->
+        <div class="sidebar-header">
+            <div>
+                <h2 id="sb-title">Node Title</h2>
+                <span id="sb-badge" class="badge">Type</span>
+            </div>
+            <button class="close-btn" onclick="closeSidebar()">×</button>
+        </div>
+        <div class="sidebar-content">
+            <div class="section">
+                <h4>Description / Metadata</h4>
+                <p id="sb-desc" style="font-size: 13px; color: #ddd; margin-bottom: 15px; line-height: 1.4;"></p>
+                <div id="sb-config-content"></div>
+            </div>
+
+            <div class="section">
+                <h4>Impact Analysis (Upstream)</h4>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom:5px;">What feeds data into this component?</p>
+                <ul id="sb-upstream" class="dependency-list"></ul>
+            </div>
+
+            <div class="section">
+                <h4>Impact Analysis (Downstream)</h4>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom:5px;">If this breaks, what else fails?</p>
+                <ul id="sb-downstream" class="dependency-list"></ul>
+            </div>
+
+            <div class="section">
+                <h4>AI Prompt Generator</h4>
+                <p style="font-size: 12px; color: var(--text-muted);">Generate context to paste into ChatGPT/Claude.</p>
+                <button class="btn" onclick="generatePrompt()">Generate Context Prompt</button>
+                <textarea id="prompt-output" readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flow Canvas -->
+    <div id="flow-canvas-overlay">
+        <!-- ... existing flow canvas HTML ... -->
+        <div class="flow-header">
+            <h2><span id="flow-badge" class="badge"></span> <span id="flow-title">Flow Viewer</span></h2>
+            <button class="btn" style="width: auto; margin: 0;" onclick="closeFlowCanvas()">Back to Graph</button>
+        </div>
+        <div class="flow-container" id="flow-diagram-area"></div>
+    </div>
+
+    <div id="graph-container"></div>
+
+    <script>
+        // ==========================================
+        // AUTO-PARSER: REGEX ENGINE FOR SSJS DEPENDENCIES
+        // ==========================================
+        function parseSSJSDependencies(code) {
+            if (!code) return [];
+            const dependencies = [];
+            const uniqueTargets = new Set();
+
+            function addDep(type, action, target) {
+                let cleanTarget = target.replace(/['"]/g, '').trim();
+                const key = `${action}-${cleanTarget}`;
+                if (!uniqueTargets.has(key)) {
+                    uniqueTargets.add(key);
+                    dependencies.push({ type, action, target: cleanTarget });
+                }
+            }
+
+            const coreRegex = /Platform\.Function\.(InsertData|UpdateData|UpsertData|DeleteData|Lookup|LookupRows|LookupOrderedRows)\s*\(\s*([^,\s]+)/g;
+            let match;
+            while ((match = coreRegex.exec(code)) !== null) addDep('Platform.Function', match[1], match[2]);
+
+            const initRegex = /DataExtension\.Init\s*\(\s*([^)\s]+)\s*\)/g;
+            while ((match = initRegex.exec(code)) !== null) addDep('Core Object', 'Init', match[1]);
+
+            const wsRetrieveRegex = /\.retrieve\s*\(\s*['"]DataExtensionObject\[([^'"]+)\]['"]/g;
+            while ((match = wsRetrieveRegex.exec(code)) !== null) addDep('WSProxy', 'Retrieve', match[1]);
+
+            const customerKeyRegex = /CustomerKey\s*:\s*([^,\s}]+)/g;
+            while ((match = customerKeyRegex.exec(code)) !== null) {
+                addDep('WSProxy Payload', 'TargetDE', match[1]);
+            }
+
+            const wsActionRegex = /\.(createBatch|createItem|updateBatch|updateItem|deleteBatch|deleteItem)\s*\(\s*['"](DataExtensionObject)['"]/g;
+            while ((match = wsActionRegex.exec(code)) !== null) addDep('WSProxy', match[1], match[2]);
+
+            return dependencies;
+        }
+
+        // ==========================================
+        // 1. DATA MASTER (Enriched with BU and Folder types)
+        // ==========================================
+        const sfmcData = {
+            nodes: [
+                {
+                    id: "auto_reengage_p03", label: "Reengagement_Phase03", type: "Automation", radius: 18,
+                    desc: "Status: Scheduled\\nLast Run: 2026-04-24T12:48:04Z",
+                    externalKey: "47a2fa65-cea5-9b60-b141-a4e9e1d679ae",
+                    bu: "International", folderCategory: "Automations",
+                    flowData: {
+                        type: "automation",
+                        steps: [
+                            { step: 1, activities: [ { name: "SQL_Reengagement_Phase03_Step1", type: "SQL", color: "var(--color-sql)" } ] },
+                            { step: 2, activities: [ { name: "SSJS-Reengagement_PH03", type: "SSJS", color: "var(--color-ssjs)" } ] }
+                        ]
+                    }
+                },
+                {
+                    id: "sql_step1", label: "SQL_Reengagement_Phase03_Step1", type: "SQL", radius: 12,
+                    desc: "Runs daily. Joins the Phase 02 Exit LOG with the Subscribers DE.",
+                    externalKey: "FD9BC1E9-4E62-4600-8368-87F3C6AD1DE5",
+                    bu: "International", folderCategory: "Queries",
+                    content: `SELECT lg.Subscriber_Key FROM [Reengagement_Phase02_JourneyExits_LOG] lg`
+                },
+                {
+                    id: "ssjs_step2", label: "SSJS-Reengagement_PH03", type: "SSJS", radius: 12,
+                    desc: "Process subscribers and trigger journeys.",
+                    externalKey: "a568ee6b-8a5e-4c84-86dc-690db32a5033",
+                    bu: "International", folderCategory: "Scripts",
+                    content: `<script runat="server">\nPlatform.Load("core", "1");\n\x3C/script>`
+                },
+                { id: "de_staging", label: "Reengagement_Phase03_Staging_Log", type: "DataExtension", radius: 10, desc: "Temporary cache.", externalKey: "PROD-STAGING", bu: "International", folderCategory: "Local DEs" },
+                { id: "de_p02exit", label: "Reengagement_Phase02_JourneyExits", type: "DataExtension", radius: 10, desc: "Source of exits.", externalKey: "4FDDDA4B", bu: "International", folderCategory: "Local DEs" },
+                { id: "de_subs", label: "Zoetis B2C Int. Subscribers", type: "DataExtension", radius: 10, desc: "Master subscriber info.", bu: "Enterprise", folderCategory: "Shared DEs" },
+                { id: "de_aux", label: "Reengagement_Phases_Auxiliary", type: "DataExtension", radius: 10, desc: "Phase mapping.", externalKey: "PROD-AUX", bu: "Enterprise", folderCategory: "Shared DEs" },
+                { id: "de_webform", label: "B2C Int. WebForm Request Log", type: "DataExtension", radius: 10, desc: "Entry source.", externalKey: "6964FF23", bu: "Enterprise", folderCategory: "Salesforce DEs" },
+                { id: "de_status", label: "B2C Int. Campaign Status", type: "DataExtension", radius: 10, desc: "Membership tracker.", externalKey: "EA04A1A3", bu: "Enterprise", folderCategory: "Shared DEs" },
+                { id: "de_execlog", label: "Reengagement_P03_Execution_Log", type: "DataExtension", radius: 8, desc: "Debug logging.", externalKey: "EXEC-LOG-001", bu: "International", folderCategory: "Local DEs" },
+                { id: "de_token", label: "API_Call_Token_Reengage", type: "DataExtension", radius: 8, desc: "Caches REST API tokens.", externalKey: "TOKEN", bu: "Enterprise", folderCategory: "Local DEs" },
+                { id: "api_jb", label: "JB Events API (/async/events)", type: "CloudPage", radius: 10, desc: "External Endpoint", bu: "External API", folderCategory: "External" },
+                { id: "de_isolated", label: "Deprecated_Log_2025", type: "DataExtension", radius: 10, desc: "No active dependencies.", externalKey: "DEPRECATED", bu: "Legacy BU", folderCategory: "Archive" }
+            ],
+            links: [
+                { source: "auto_reengage_p03", target: "sql_step1", relation: "Triggers" },
+                { source: "auto_reengage_p03", target: "ssjs_step2", relation: "Triggers" },
+                { source: "de_p02exit", target: "sql_step1", relation: "Reads" },
+                { source: "de_subs", target: "sql_step1", relation: "Reads" },
+                { source: "de_aux", target: "sql_step1", relation: "Reads" },
+                { source: "sql_step1", target: "de_staging", relation: "Overwrites" },
+                { source: "de_aux", target: "ssjs_step2", relation: "Retrieve" },
+                { source: "de_staging", target: "ssjs_step2", relation: "Retrieve" },
+                { source: "de_token", target: "ssjs_step2", relation: "Lookup" },
+                { source: "ssjs_step2", target: "api_jb", relation: "HTTPPost" },
+                { source: "ssjs_step2", target: "de_p02exit", relation: "UpdateAdd" },
+                { source: "ssjs_step2", target: "de_webform", relation: "UpdateAdd" },
+                { source: "ssjs_step2", target: "de_status", relation: "UpdateAdd" },
+                { source: "ssjs_step2", target: "de_execlog", relation: "InsertData" }
+            ]
+        };
+
+        const typeColors = {
+            "DataExtension": "var(--color-de)",
+            "SQL": "var(--color-sql)",
+            "SSJS": "var(--color-ssjs)",
+            "Journey": "var(--color-journey)",
+            "Automation": "var(--color-auto)",
+            "CloudPage": "var(--color-api)"
+        };
+
+        let selectedNodeData = null;
+        let currentFilter = 'All';
+        let currentGroupMode = 'none';
+
+        // ==========================================
+        // 2. SVG & D3 GRAPH SETUP
+        // ==========================================
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => g.attr("transform", event.transform));
+
+        const svg = d3.select("#graph-container").append("svg")
+            .attr("width", width).attr("height", height)
+            .call(zoom);
+
+        svg.append("defs").append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 22)
+            .attr("refY", 0)
+            .attr("orient", "auto")
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#666");
+
+        const g = svg.append("g");
+
+        // Fixed Groups to preserve layering: Background Labels -> Links -> Nodes -> Text Labels
+        const bgLabelGroup = g.append("g").attr("class", "bg-labels");
+        const linkGroup = g.append("g").attr("class", "links");
+        const nodeGroup = g.append("g").attr("class", "nodes");
+        const labelGroup = g.append("g").attr("class", "labels");
+
+        let linkSelection, nodeSelection, labelSelection, bgLabelSelection;
+
+        // Initialize Base Simulation
+        const simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(d => d.id).distance(180))
+            .force("charge", d3.forceManyBody().strength(-600))
+            .force("collide", d3.forceCollide().radius(d => (d.radius || 10) + 25));
+
+        // ==========================================
+        // 3. GRAPH FILTERING & GROUPING LOGIC
+        // ==========================================
+
+        // Multi-foci cluster calculation
+        function calculateClusterCenters(attribute, nodes) {
+            const centers = {};
+            const uniqueValues = [...new Set(nodes.map(n => n[attribute] || 'Uncategorized'))];
+
+            // Calculate coordinates in a circle around the center of the screen
+            // Expand the layout radius if there are many clusters
+            const layoutRadius = Math.max(Math.min(width, height) * 0.4, uniqueValues.length * 120);
+            const angleStep = (2 * Math.PI) / uniqueValues.length;
+
+            uniqueValues.forEach((val, i) => {
+                // Dynamically calculate zone size based on how many nodes are inside
+                const nodeCount = nodes.filter(n => (n[attribute] || 'Uncategorized') === val).length;
+                const zoneRadius = Math.max(160, nodeCount * 25 + 80);
+
+                centers[val] = {
+                    x: (width / 2) + layoutRadius * Math.cos(i * angleStep),
+                    y: (height / 2) + layoutRadius * Math.sin(i * angleStep),
+                    label: val,
+                    radius: zoneRadius
+                };
+            });
+            return centers;
+        }
+
+        function renderGraph() {
+            // 1. Filtering
+            const filteredNodes = currentFilter === 'All'
+                ? sfmcData.nodes
+                : sfmcData.nodes.filter(n => n.type === currentFilter);
+
+            const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+
+            const filteredLinks = sfmcData.links.filter(l => {
+                const sourceId = l.source.id || l.source;
+                const targetId = l.target.id || l.target;
+                return filteredNodeIds.has(sourceId) && filteredNodeIds.has(targetId);
+            });
+
+            // Fix: Clear layout forces BEFORE updating nodes to prevent closure-cache crashes
+            simulation.force("x", null);
+            simulation.force("y", null);
+            simulation.force("center", null);
+
+            simulation.nodes(filteredNodes);
+            simulation.force("link").links(filteredLinks);
+
+            // 2. Grouping (Multi-Foci Forces & Zones)
+            let clusterData = [];
+            if (currentGroupMode === 'none') {
+                // Default Constellation: Global Center Gravity
+                simulation.force("center", d3.forceCenter(width / 2, height / 2));
+
+                // Clear visual zones
+                bgLabelGroup.selectAll(".cluster-zone").remove();
+                bgLabelGroup.selectAll(".cluster-label").remove();
+            } else {
+                const centers = calculateClusterCenters(currentGroupMode, filteredNodes);
+                clusterData = Object.values(centers);
+
+                // Pull nodes toward their respective cluster centers tightly (with safe fallback)
+                simulation.force("x", d3.forceX(d => {
+                    const c = centers[d[currentGroupMode] || 'Uncategorized'];
+                    return c ? c.x : width / 2;
+                }).strength(0.25));
+
+                simulation.force("y", d3.forceY(d => {
+                    const c = centers[d[currentGroupMode] || 'Uncategorized'];
+                    return c ? c.y : height / 2;
+                }).strength(0.25));
+
+                // Draw Visual Zones (Dashed Background Circles)
+                bgLabelGroup.selectAll(".cluster-zone")
+                    .data(clusterData, d => d.label)
+                    .join("circle")
+                    .attr("class", "cluster-zone")
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y)
+                    .attr("r", d => d.radius)
+                    .attr("fill", "rgba(255, 255, 255, 0.03)")
+                    .attr("stroke", "rgba(255, 255, 255, 0.15)")
+                    .attr("stroke-dasharray", "8, 6")
+                    .attr("stroke-width", "2");
+
+                // Render Background Labels for the clusters at the top of their zones
+                bgLabelSelection = bgLabelGroup.selectAll(".cluster-label")
+                    .data(clusterData, d => d.label)
+                    .join("text")
+                    .attr("class", "cluster-label")
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y - d.radius + 35) // Positioned inside the top edge of the zone
+                    .text(d => d.label);
+            }
+
+            // 3. Render Links
+            linkSelection = linkGroup.selectAll("path")
+                .data(filteredLinks, d => `${d.source.id || d.source}-${d.target.id || d.target}`)
+                .join("path")
+                .attr("class", "link")
+                .attr("stroke-width", 2)
+                .attr("marker-end", "url(#arrowhead)");
+
+            // 4. Render Nodes
+            nodeSelection = nodeGroup.selectAll("circle")
+                .data(filteredNodes, d => d.id)
+                .join("circle")
+                .attr("class", "node")
+                .attr("r", d => d.radius)
+                .attr("fill", d => typeColors[d.type])
+                .call(drag(simulation))
+                .on("click", (event, d) => openSidebar(d, event.currentTarget));
+
+            nodeSelection.classed("selected", d => selectedNodeData && d.id === selectedNodeData.id);
+
+            // 5. Render Labels
+            labelSelection = labelGroup.selectAll("text")
+                .data(filteredNodes, d => d.id)
+                .join("text")
+                .attr("class", "label")
+                .attr("dx", d => d.radius + 8)
+                .attr("dy", ".35em")
+                .text(d => d.label);
+
+            simulation.alpha(0.8).restart();
+        }
+
+        // ==========================================
+        // 4. EVENT LISTENERS
+        // ==========================================
+
+        simulation.on("tick", () => {
+            if (linkSelection) {
+                linkSelection.attr("d", d => {
+                    const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+                    const dr = Math.sqrt(dx * dx + dy * dy);
+                    return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+                });
+            }
+            if (nodeSelection) nodeSelection.attr("cx", d => d.x).attr("cy", d => d.y);
+            if (labelSelection) labelSelection.attr("x", d => d.x).attr("y", d => d.y);
+        });
+
+        function drag(sim) {
+            return d3.drag()
+                .on("start", e => { if (!e.active) sim.alphaTarget(0.3).restart(); e.subject.fx = e.subject.x; e.subject.fy = e.subject.y; })
+                .on("drag", e => { e.subject.fx = e.x; e.subject.fy = e.y; })
+                .on("end", e => { if (!e.active) sim.alphaTarget(0); e.subject.fx = null; e.subject.fy = null; });
+        }
+
+        // Handle Type Filtering
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+
+                currentFilter = e.target.getAttribute('data-type');
+                if (selectedNodeData && selectedNodeData.type !== currentFilter && currentFilter !== 'All') {
+                    closeSidebar();
+                }
+                renderGraph();
+            });
+        });
+
+        // Handle Organization/Grouping
+        document.querySelectorAll('.group-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+
+                currentGroupMode = e.target.getAttribute('data-group');
+                renderGraph();
+
+                // Slight zoom out when grouping to see the whole spread of zones
+                if (currentGroupMode !== 'none') {
+                    svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2).scale(0.35).translate(-width/2, -height/2));
+                } else {
+                    svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(width/2 - 100, height/2).scale(0.8).translate(-width/2, -height/2));
+                }
+            });
+        });
+
+        window.addEventListener('resize', () => {
+            svg.attr("width", window.innerWidth).attr("height", window.innerHeight);
+            if (currentGroupMode === 'none') {
+                simulation.force("center", d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2));
+            }
+            simulation.alpha(0.3).restart();
+        });
+
+        // Init
+        renderGraph();
+        svg.call(zoom.transform, d3.zoomIdentity.translate(width/2 - 100, height/2).scale(0.8).translate(-width/2, -height/2));
+
+        // ==========================================
+        // 5. SIDEBAR & FLOW LOGIC
+        // ==========================================
+        function openSidebar(d, nodeElement) {
+            selectedNodeData = d;
+
+            d3.selectAll(".node").classed("selected", false);
+            d3.select(nodeElement).classed("selected", true);
+
+            document.getElementById('sb-title').innerText = d.label;
+            const badge = document.getElementById('sb-badge');
+            badge.innerText = d.type;
+            badge.style.backgroundColor = typeColors[d.type];
+            document.getElementById('sb-desc').innerText = d.desc.replace(/\\n/g, '\n');
+
+            const configContent = document.getElementById('sb-config-content');
+            let configHtml = '';
+
+            if (d.externalKey || d.folderCategory || d.bu) {
+                configHtml += `<div class="meta-grid">`;
+                if (d.externalKey) configHtml += `<div class="meta-label">External Key:</div><div class="meta-value">${d.externalKey}</div>`;
+                if (d.bu) configHtml += `<div class="meta-label">Business Unit:</div><div class="meta-value">${d.bu}</div>`;
+                if (d.folderCategory) configHtml += `<div class="meta-label">Folder/Cat:</div><div class="meta-value">${d.folderCategory}</div>`;
+                configHtml += `</div>`;
+            }
+
+            if (d.type === 'SSJS' && d.content) {
+                const parsedDeps = parseSSJSDependencies(d.content);
+                if (parsedDeps.length > 0) {
+                    configHtml += `<div class="meta-grid" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">`;
+                    configHtml += `<div class="meta-label" style="grid-column: span 2; color: var(--accent-color);">Auto-Detected API Calls (Regex):</div>`;
+                    configHtml += `<table class="config-table" style="grid-column: span 2;">
+                        <thead><tr><th>Action</th><th>Target DE / Reference</th><th>Method Group</th></tr></thead>
+                        <tbody>`;
+                    parsedDeps.forEach(dep => {
+                        configHtml += `<tr>
+                            <td><strong>${dep.action}</strong></td>
+                            <td style="color: var(--color-de);">${dep.target}</td>
+                            <td>${dep.type}</td>
+                        </tr>`;
+                    });
+                    configHtml += `</tbody></table></div>`;
+                }
+            }
+
+            if ((d.type === 'SQL' || d.type === 'SSJS') && d.content) {
+                const codeClass = d.type === 'SQL' ? 'sql-code' : '';
+                const safeContent = d.content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                configHtml += `<div class="code-block ${codeClass}">${safeContent}</div>`;
+            }
+
+            if (d.flowData) {
+                configHtml += `<div style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 6px;">`;
+                configHtml += `<p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">This component contains a nested execution flow.</p>`;
+                configHtml += `<button class="btn" style="background: transparent; border: 1px solid var(--accent-color); color: var(--text-main);" onclick="openFlowCanvas()">View Interactive Diagram</button>`;
+                configHtml += `</div>`;
+            }
+
+            configContent.innerHTML = configHtml;
+
+            const upstream = sfmcData.links.filter(l => (l.target.id || l.target) === d.id);
+            const downstream = sfmcData.links.filter(l => (l.source.id || l.source) === d.id);
+
+            const upList = document.getElementById('sb-upstream');
+            upList.innerHTML = upstream.length ? '' : '<li>None</li>';
+            upstream.forEach(l => {
+                const sourceNode = sfmcData.nodes.find(n => n.id === (l.source.id || l.source));
+                if(sourceNode) upList.innerHTML += `<li>${sourceNode.label} <span class="rel-type">(${l.relation})</span></li>`;
+            });
+
+            const downList = document.getElementById('sb-downstream');
+            downList.innerHTML = downstream.length ? '' : '<li>None</li>';
+            downstream.forEach(l => {
+                const targetNode = sfmcData.nodes.find(n => n.id === (l.target.id || l.target));
+                if(targetNode) downList.innerHTML += `<li>${targetNode.label} <span class="rel-type">(${l.relation})</span></li>`;
+            });
+
+            document.getElementById('prompt-output').style.display = 'none';
+            document.getElementById('sidebar').classList.add('open');
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            d3.selectAll(".node").classed("selected", false);
+            selectedNodeData = null;
+        }
+
+        function openFlowCanvas() {
+            if (!selectedNodeData || !selectedNodeData.flowData) return;
+
+            const overlay = document.getElementById('flow-canvas-overlay');
+            const title = document.getElementById('flow-title');
+            const badge = document.getElementById('flow-badge');
+            const area = document.getElementById('flow-diagram-area');
+
+            title.innerText = selectedNodeData.label;
+            badge.innerText = selectedNodeData.type;
+            badge.style.backgroundColor = typeColors[selectedNodeData.type];
+
+            let html = '';
+            const flow = selectedNodeData.flowData;
+
+            if (flow.type === "automation") {
+                flow.steps.forEach(step => {
+                    html += `<div class="auto-step" data-step="${step.step}">`;
+                    step.activities.forEach(act => {
+                        html += `
+                            <div class="activity-card" style="border-left-color: ${act.color || 'var(--accent-color)'}">
+                                <div class="activity-type">${act.type}</div>
+                                <div class="activity-name">${act.name}</div>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                });
+            }
+
+            area.innerHTML = html;
+            overlay.classList.add('active');
+        }
+
+        function closeFlowCanvas() {
+            document.getElementById('flow-canvas-overlay').classList.remove('active');
+        }
+
+        function generatePrompt() {
+            if(!selectedNodeData) return;
+
+            const up = sfmcData.links.filter(l => (l.target.id || l.target) === selectedNodeData.id).map(l => {
+                const src = sfmcData.nodes.find(n => n.id === (l.source.id || l.source));
+                return `${src.label} (${src.type})`;
+            });
+            const down = sfmcData.links.filter(l => (l.source.id || l.source) === selectedNodeData.id).map(l => {
+                const tgt = sfmcData.nodes.find(n => n.id === (l.target.id || l.target));
+                return `${tgt.label} (${tgt.type})`;
+            });
+
+            let promptStr = `I am working on a Salesforce Marketing Cloud (SFMC) architecture.\n`;
+            promptStr += `I need to make a change to an asset named "${selectedNodeData.label}" (${selectedNodeData.type}).\n`;
+
+            if (selectedNodeData.externalKey) promptStr += `External Key: ${selectedNodeData.externalKey}\n`;
+            promptStr += `Description: ${selectedNodeData.desc}\n\n`;
+
+            if (selectedNodeData.content) {
+                promptStr += `Current Code:\n\`\`\`\n${selectedNodeData.content}\n\`\`\`\n\n`;
+            }
+
+            if(up.length > 0) promptStr += `Context: This asset receives data/triggers from: ${up.join(', ')}.\n`;
+            if(down.length > 0) promptStr += `IMPACT WARNING: This asset feeds into or triggers: ${down.join(', ')}.\n`;
+
+            promptStr += `\nTask: Based on these dependencies and the provided code, what are the potential risks and best practices if I alter this component?`;
+
+            const output = document.getElementById('prompt-output');
+            output.value = promptStr;
+            output.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -47,6 +47,22 @@ function container(label, iconName, accentColor, options = {}) {
   return { type: 'sf.Container', label, iconName, accentColor, ...options };
 }
 
+function sfmcAsset(label, assetType, color, stencilSvg, options = {}) {
+  return {
+    type: 'sf.SimpleNode',
+    label,
+    assetType,
+    bg: color,
+    stencilSvg,
+    folderCategory: options.folderCategory || assetType,
+    businessUnit: options.businessUnit || '',
+    externalKey: options.externalKey || '',
+    assetDescription: options.assetDescription || '',
+    assetContent: options.assetContent || '',
+    ...options,
+  };
+}
+
 // Stencil SVG icons (20×20 viewBox, stroke-based, no fill by default)
 export const SVG = {
   node:       '<rect x="3" y="4" width="14" height="12" rx="3" /><circle cx="10" cy="10" r="2" fill="currentColor" stroke="none"/>',
@@ -96,6 +112,13 @@ export const SVG = {
   annotation: '<line x1="2" y1="8" x2="10" y2="8" stroke-width="1" opacity="0.5"/><line x1="2" y1="11" x2="8" y2="11" stroke-width="1" opacity="0.5"/><path d="M18 3 Q14 3 14 6 L14 8.5 Q14 10 12 10 Q14 10 14 11.5 L14 14 Q14 17 18 17" fill="none"/>',
   // Data Model
   dataTable:  '<rect x="2" y="3" width="16" height="14" rx="2"/><rect x="2" y="3" width="16" height="5" rx="2" fill="currentColor" stroke="none" opacity="0.4"/><line x1="5" y1="11" x2="15" y2="11" stroke-width="1" opacity="0.4"/><line x1="5" y1="14" x2="12" y2="14" stroke-width="1" opacity="0.4"/>',
+  // SFMC Governance
+  sfmcDataExtension: '<g fill="none" stroke="currentColor" stroke-linejoin="round"><ellipse cx="10" cy="5" rx="6" ry="2.5"/><path d="M4 5v8c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5"/><path d="M4 9c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5"/></g>',
+  sfmcAutomation: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="5"/><path d="M10 5v5l3 2"/><path d="M3 10H1.5M18.5 10H17M10 1.5V3M10 17v1.5"/></g>',
+  sfmcSql: '<g fill="none" stroke="currentColor" stroke-linecap="round"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6 8h8M6 11h5M6 14h7"/></g>',
+  sfmcSsjs: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/><path d="M11 5L9 15"/></g>',
+  sfmcJourney: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="10" r="2"/><circle cx="10" cy="5" r="2"/><circle cx="16" cy="10" r="2"/><circle cx="10" cy="15" r="2"/><path d="M5.7 8.8L8.3 6.2M11.7 6.2l2.6 2.6M14.3 11.2l-2.6 2.6M8.3 13.8l-2.6-2.6"/></g>',
+  sfmcApi: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="16" height="8" rx="4"/><path d="M6 10h8M10 6v8"/></g>',
   // Sequence Diagram
   seqParticipant: '<rect x="3" y="2" width="14" height="5" rx="1"/><line x1="10" y1="7" x2="10" y2="18" stroke-dasharray="2 2"/>',
   seqActor:       '<circle cx="10" cy="4" r="2" stroke-width="1.2"/><line x1="10" y1="6" x2="10" y2="11" stroke-width="1.2"/><line x1="7" y1="8" x2="13" y2="8" stroke-width="1.2"/><line x1="10" y1="11" x2="8" y2="13" stroke-width="1.2"/><line x1="10" y1="11" x2="12" y2="13" stroke-width="1.2"/><line x1="10" y1="14" x2="10" y2="18" stroke-dasharray="2 2"/>',
@@ -401,6 +424,94 @@ export const BPMN_CATEGORIES = [
       { type: 'sf.Annotation', label: 'Annotation', stencilSvg: SVG.annotation },
       { type: 'sf.Line',       label: 'Line',       stencilSvg: SVG.line },
       { type: 'sf.Link',       label: 'Link',       url: 'https://', stencilSvg: SVG.link },
+    ],
+  },
+];
+
+// ── SFMC Governance templates ─────────────────────────────────────
+export const GOVERNANCE_CATEGORIES = [
+  {
+    id: 'sfmc-assets',
+    label: 'SFMC Assets',
+    templates: [
+      sfmcAsset('Data Extension', 'DataExtension', '#1D73C9', SVG.sfmcDataExtension, {
+        folderCategory: 'Data Extensions',
+        assetDescription: 'Stores SFMC subscriber, event, or operational data.',
+      }),
+      sfmcAsset('Automation', 'Automation', '#DA4E55', SVG.sfmcAutomation, {
+        folderCategory: 'Automations',
+        assetDescription: 'Scheduled or triggered Automation Studio workflow.',
+      }),
+      sfmcAsset('SQL Query', 'SQL', '#2A9D8F', SVG.sfmcSql, {
+        folderCategory: 'Queries',
+        assetDescription: 'SQL activity that reads and writes data extensions.',
+        assetContent: 'SELECT SubscriberKey\nFROM [Source_Data_Extension]',
+      }),
+      sfmcAsset('SSJS Script', 'SSJS', '#7F5FBF', SVG.sfmcSsjs, {
+        folderCategory: 'Scripts',
+        assetDescription: 'Server-side JavaScript activity or CloudPage logic.',
+        assetContent: 'Platform.Load("core", "1");',
+      }),
+      sfmcAsset('Journey', 'Journey', '#E97628', SVG.sfmcJourney, {
+        folderCategory: 'Journeys',
+        assetDescription: 'Journey Builder orchestration or entry event dependency.',
+      }),
+      sfmcAsset('API / Endpoint', 'API', '#64748B', SVG.sfmcApi, {
+        folderCategory: 'External',
+        assetDescription: 'External or SFMC API endpoint used by automations, scripts, or journeys.',
+      }),
+    ],
+  },
+  {
+    id: 'sfmc-reference',
+    label: 'Common References',
+    collapsed: true,
+    templates: [
+      sfmcAsset('Shared DE', 'DataExtension', '#155E9F', SVG.sfmcDataExtension, { folderCategory: 'Shared DEs', businessUnit: 'Enterprise' }),
+      sfmcAsset('Local DE', 'DataExtension', '#2E86DE', SVG.sfmcDataExtension, { folderCategory: 'Local DEs' }),
+      sfmcAsset('CloudPage', 'CloudPage', '#E3A008', SVG.sfmcApi, { folderCategory: 'CloudPages' }),
+      { type: 'sf.Note', label: 'Governance Note', stencilSvg: SVG.note },
+      { type: 'sf.Zone', label: 'Business Unit Zone', stencilSvg: SVG.zone },
+    ],
+  },
+];
+
+// ── SFMC Automation templates ─────────────────────────────────────
+
+function automationNode(label, automationNodeType, color, stencilSvg, options = {}) {
+  return { type: 'sf.SimpleNode', label, automationNodeType, bg: color, stencilSvg, ...options };
+}
+
+export const AUTOMATION_CATEGORIES = [
+  {
+    id: 'automation-core',
+    label: 'Automation Objects',
+    templates: [
+      automationNode('Automation',  'Automation',     '#DA4E55', SVG.sfmcAutomation),
+      automationNode('Step',        'AutomationStep', '#6D6875', SVG.zone),
+      automationNode('SSJS Script', 'SSJS',           '#7F5FBF', SVG.sfmcSsjs),
+      automationNode('SQL Query',   'SQL',            '#2A9D8F', SVG.sfmcSql),
+      automationNode('Journey',     'Journey',        '#E97628', SVG.sfmcJourney),
+      {
+        type: 'sf.DataObject',
+        label: 'Data Extension',
+        objectName: 'DE_Name',
+        headerColor: '#1D73C9',
+        stencilSvg: SVG.sfmcDataExtension,
+        automationNodeType: 'DataExtension',
+        fields: [{ label: 'SubscriberKey', apiName: 'SubscriberKey', type: 'Text(254)', keyType: 'pk' }],
+      },
+    ],
+  },
+  {
+    id: 'automation-generic',
+    label: 'Generic Shapes',
+    collapsed: true,
+    templates: [
+      { type: 'sf.Zone',      label: 'Zone',       stencilSvg: SVG.zone },
+      { type: 'sf.Note',      label: 'Note',       stencilSvg: SVG.note },
+      { type: 'sf.TextLabel', label: 'Text',       stencilSvg: SVG.text },
+      { type: 'sf.Line',      label: 'Line',       stencilSvg: SVG.line },
     ],
   },
 ];
@@ -984,7 +1095,7 @@ export function getAllStencilSvgs() {
   }
 
   // 2. Inline stencilSvg from all template categories
-  const allCats = [...TEMPLATE_CATEGORIES, ...BPMN_CATEGORIES, ...GANTT_CATEGORIES, ...ORG_CATEGORIES, ...DATAMODEL_CATEGORIES];
+  const allCats = [...TEMPLATE_CATEGORIES, ...BPMN_CATEGORIES, ...GANTT_CATEGORIES, ...ORG_CATEGORIES, ...DATAMODEL_CATEGORIES, ...GOVERNANCE_CATEGORIES, ...AUTOMATION_CATEGORIES];
   for (const cat of allCats) {
     for (const tpl of cat.templates || []) {
       if (!tpl.stencilSvg || seenSvg.has(tpl.stencilSvg)) continue;
@@ -1028,7 +1139,11 @@ export function createElementFromTemplate(template, position = { x: 100, y: 100 
         attrs.subtitle.opacity = 0.7;
       }
       if (iconHref) attrs.icon = { href: iconHref };
-      return new joint.shapes.sf.SimpleNode({ position, attrs });
+      const config = { position, attrs };
+      ['assetType', 'externalKey', 'businessUnit', 'folderCategory', 'assetDescription', 'assetContent', 'automationNodeType'].forEach(key => {
+        if (template[key] !== undefined) config[key] = template[key];
+      });
+      return new joint.shapes.sf.SimpleNode(config);
     }
 
     case 'sf.Container': {
@@ -1252,7 +1367,7 @@ export function createElementFromTemplate(template, position = { x: 100, y: 100 
       const HEADER_H = 32;
       const ROW_H = 22;
       const height = HEADER_H + Math.max(fields.length, 1) * ROW_H + 4;
-      return new joint.shapes.sf.DataObject({
+      const doConfig = {
         position,
         size: { width: 260, height },
         objectName,
@@ -1263,7 +1378,9 @@ export function createElementFromTemplate(template, position = { x: 100, y: 100 
           headerCover: { fill: headerColor },
           headerLabel: { text: objectName },
         },
-      });
+      };
+      if (template.automationNodeType !== undefined) doConfig.automationNodeType = template.automationNodeType;
+      return new joint.shapes.sf.DataObject(doConfig);
     }
 
     // ── Gantt shapes ──────────────────────────────────────────

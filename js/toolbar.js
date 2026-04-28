@@ -652,8 +652,10 @@ function getDiagramTypeIcon(type) {
     architecture: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="10" y="1" width="5" height="5" rx="1"/><rect x="5.5" y="10" width="5" height="5" rx="1"/><path d="M3.5 6v2h9V6M8 8v2" stroke="currentColor" stroke-width="1" fill="none"/></svg>',
     process: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="7" y="5.5" width="5" height="5" rx="1"/><circle cx="3" cy="8" r="1"/><line x1="5.5" y1="8" x2="7" y2="8" stroke="currentColor" stroke-width="1.5"/></svg>',
     datamodel: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="1" width="6" height="3" rx="1"/><rect x="9" y="7" width="6" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="7" width="6" height="3" rx="1"/></svg>',
+    governance: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="2"/><circle cx="3" cy="4" r="1.5" opacity="0.7"/><circle cx="13" cy="4" r="1.5" opacity="0.7"/><circle cx="4" cy="13" r="1.5" opacity="0.6"/><circle cx="12" cy="13" r="1.5" opacity="0.6"/><path d="M4.2 4.8L6.5 7M11.8 4.8L9.5 7M5 12L6.8 9.5M11 12L9.2 9.5" stroke="currentColor" stroke-width="1" fill="none"/></svg>',
     gantt: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="8" height="3" rx="1"/><rect x="4" y="7" width="9" height="3" rx="1" opacity="0.7"/><rect x="7" y="12" width="6" height="3" rx="1" opacity="0.5"/></svg>',
     org: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="5" y="1" width="6" height="4" rx="1"/><rect x="0.5" y="10" width="6" height="4" rx="1" opacity="0.7"/><rect x="9.5" y="10" width="6" height="4" rx="1" opacity="0.7"/><path d="M8 5v2H3.5V10M8 7h4.5V10" stroke="currentColor" stroke-width="1" fill="none"/></svg>',
+    automation: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 5.5v2.5l2 1.2" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round"/><rect x="9" y="5" width="3.5" height="6" rx="0.8" opacity="0.75"/><rect x="13.5" y="5" width="2" height="6" rx="0.8" opacity="0.5"/><path d="M7 8h2M12.5 8h1" stroke="currentColor" stroke-width="0.9" fill="none"/></svg>',
   };
   return icons[type] || icons.architecture;
 }
@@ -764,6 +766,8 @@ function updateDisplayMenuVisibility() {
   const isGantt = type === 'gantt';
   const isDataModel = type === 'datamodel';
   const isSequence = type === 'sequence';
+  const isGovernance = type === 'governance';
+  const isAutomation = type === 'automation';
 
   // Show/hide Gantt-specific options
   const ganttSep = document.getElementById('display-gantt-separator');
@@ -776,7 +780,7 @@ function updateDisplayMenuVisibility() {
 
   // Hide auto-layout buttons for Gantt (timeline-driven) and Sequence
   // (positions are meaningful along the lifeline axes).
-  const hideAutoLayout = isGantt || isSequence;
+  const hideAutoLayout = isGantt || isSequence || isGovernance || isAutomation;
   const autoH = document.getElementById('btn-auto-layout-h');
   const autoV = document.getElementById('btn-auto-layout-v');
   if (autoH) autoH.style.display = hideAutoLayout ? 'none' : '';
@@ -812,6 +816,20 @@ function updateDisplayMenuVisibility() {
   // OR the sequence bottom-labels toggle (sequence).
   if (flowSep) flowSep.style.display = showFlow ? '' : 'none';
   if (flowBtn) flowBtn.style.display = showFlow ? '' : 'none';
+
+  const govSep = document.getElementById('display-governance-separator');
+  const govLayout = document.getElementById('btn-governance-layout');
+  const govPrompt = document.getElementById('btn-governance-prompt');
+  if (govSep) govSep.style.display = isGovernance ? '' : 'none';
+  if (govLayout) govLayout.style.display = isGovernance ? '' : 'none';
+  if (govPrompt) govPrompt.style.display = isGovernance ? '' : 'none';
+
+  const automSep = document.getElementById('display-automation-separator');
+  const automImport = document.getElementById('btn-automation-import');
+  const automLayout = document.getElementById('btn-automation-layout');
+  if (automSep) automSep.style.display = isAutomation ? '' : 'none';
+  if (automImport) automImport.style.display = isAutomation ? '' : 'none';
+  if (automLayout) automLayout.style.display = isAutomation ? '' : 'none';
 
   // Stop animation and reset export buttons when switching away from supported types
   if (!showFlow) {

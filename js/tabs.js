@@ -16,9 +16,11 @@ export const DIAGRAM_TYPES = {
   architecture: { label: 'Architecture Diagram', short: 'Architecture' },
   process:      { label: 'Process Diagram',      short: 'Process' },
   sequence:     { label: 'Sequence Diagram',      short: 'Sequence' },
+  governance:   { label: 'SFMC Governance Map',   short: 'Governance' },
   datamodel:    { label: 'Data Model Diagram',   short: 'Data Model' },
   gantt:        { label: 'Gantt Chart',           short: 'Gantt' },
   org:          { label: 'Organisation Diagram',  short: 'Organisation' },
+  automation:   { label: 'SFMC Automation Map',   short: 'Automation' },
 };
 
 const STORAGE_KEY = 'sf-diagrams-tabs';
@@ -137,6 +139,18 @@ function showNewDiagramModal() {
           <span class="sf-new-modal__card-title">Data Model</span>
           <span class="sf-new-modal__card-desc">Define objects, fields, and relationships like Schema Builder.</span>
         </button>
+        <button class="sf-new-modal__card" data-type="governance">
+          <svg class="sf-new-modal__icon" viewBox="0 0 64 48">
+            <circle cx="32" cy="24" r="7" fill="var(--color-primary)" opacity="0.9"/>
+            <circle cx="13" cy="11" r="5" fill="var(--color-primary)" opacity="0.65"/>
+            <circle cx="51" cy="11" r="5" fill="var(--color-accent)" opacity="0.75"/>
+            <circle cx="15" cy="38" r="5" fill="var(--color-primary)" opacity="0.5"/>
+            <circle cx="49" cy="38" r="5" fill="var(--color-accent)" opacity="0.55"/>
+            <path d="M18 13l9 7M46 13l-9 7M19 36l8-8M45 36l-8-8M20 38h24" stroke="var(--text-muted)" stroke-width="1.5" fill="none"/>
+          </svg>
+          <span class="sf-new-modal__card-title">SFMC Governance</span>
+          <span class="sf-new-modal__card-desc">Map Marketing Cloud assets, dependencies, metadata, and AI prompts.</span>
+        </button>
         <button class="sf-new-modal__card" data-type="gantt">
           <svg class="sf-new-modal__icon" viewBox="0 0 64 48">
             <rect x="8" y="6" width="24" height="7" rx="2" fill="var(--color-primary)" opacity="0.8"/>
@@ -161,6 +175,17 @@ function showNewDiagramModal() {
           </svg>
           <span class="sf-new-modal__card-title">Organisation</span>
           <span class="sf-new-modal__card-desc">Document team hierarchy, roles, and responsibilities.</span>
+        </button>
+        <button class="sf-new-modal__card" data-type="automation">
+          <svg class="sf-new-modal__icon" viewBox="0 0 64 48">
+            <circle cx="10" cy="24" r="7" fill="none" stroke="var(--color-primary)" stroke-width="2" opacity="0.8"/>
+            <path d="M10 18v6l4 2.5" stroke="var(--color-primary)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+            <rect x="26" y="17" width="14" height="14" rx="2" fill="var(--color-primary)" opacity="0.75"/>
+            <rect x="47" y="17" width="14" height="14" rx="2" fill="var(--color-primary)" opacity="0.5"/>
+            <path d="M17 24h9M40 24h7" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="2 1.5"/>
+          </svg>
+          <span class="sf-new-modal__card-title">SFMC Automation</span>
+          <span class="sf-new-modal__card-desc">Visualize Automation Studio workflows, SSJS scripts, Journeys, and Data Extensions.</span>
         </button>
       </div>
     </div>
@@ -930,6 +955,8 @@ function render() {
       typeIcon.innerHTML = '<rect x="1" y="2" width="8" height="3" rx="1" fill="currentColor"/><rect x="4" y="7" width="9" height="3" rx="1" fill="currentColor" opacity="0.7"/><rect x="7" y="12" width="6" height="3" rx="1" fill="currentColor" opacity="0.5"/>';
     } else if (tab.diagramType === 'org') {
       typeIcon.innerHTML = '<rect x="5" y="1" width="6" height="4" rx="1" fill="currentColor"/><rect x="0.5" y="10" width="6" height="4" rx="1" fill="currentColor" opacity="0.7"/><rect x="9.5" y="10" width="6" height="4" rx="1" fill="currentColor" opacity="0.7"/><path d="M8 5v2H3.5V10M8 7h4.5V10" stroke="currentColor" stroke-width="1" fill="none"/>';
+    } else if (tab.diagramType === 'automation') {
+      typeIcon.innerHTML = '<circle cx="4" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 5.5v2.5l2 1.2" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round"/><rect x="9" y="5" width="3.5" height="6" rx="0.8" fill="currentColor" opacity="0.75"/><rect x="13.5" y="5" width="2.5" height="6" rx="0.8" fill="currentColor" opacity="0.5"/><path d="M7 8h2M12.5 8h1" stroke="currentColor" stroke-width="0.9" fill="none"/>';
     } else {
       typeIcon.innerHTML = '<rect x="1" y="1" width="5" height="5" rx="1"/><rect x="10" y="1" width="5" height="5" rx="1"/><rect x="5.5" y="10" width="5" height="5" rx="1"/><path d="M3.5 6v2h9V6M8 8v2" stroke="currentColor" stroke-width="1" fill="none"/>';
     }

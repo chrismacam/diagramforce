@@ -16,6 +16,8 @@ import * as properties  from './properties.js?v=1.8.0';
 import * as persistence from './persistence.js?v=1.8.0';
 import * as tabs        from './tabs.js?v=1.8.0';
 import * as mermaidImport from './mermaid-import.js?v=1.8.0';
+import * as governance  from './governance.js?v=1.8.0';
+import * as automation  from './automation.js?v=1.8.0';
 
 async function main() {
   // Set app version in About modal
@@ -56,6 +58,8 @@ async function main() {
     clipboard,
     persistence,
     toolbar,
+    governance,
+    automation,
     theme,
     stencil,
     tabs,
@@ -77,6 +81,12 @@ async function main() {
 
   // --- Phase 7b: Mermaid import (needs tabs + canvas + graph) ---
   mermaidImport.init(moduleRefs);
+
+  // --- Phase 7c: SFMC governance asset view ---
+  governance.init(moduleRefs);
+
+  // --- Phase 7d: SFMC automation map view ---
+  automation.init(moduleRefs);
 
   // --- Phase 8: Mobile interactions ---
   canvas.initMobileDragHandles();

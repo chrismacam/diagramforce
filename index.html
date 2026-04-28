@@ -39,6 +39,8 @@
   <link rel="stylesheet" href="css/tabs.css?v=1.8.0">
   <link rel="stylesheet" href="css/canvas.css?v=1.8.0">
   <link rel="stylesheet" href="css/modals.css?v=1.8.0">
+  <link rel="stylesheet" href="css/governance.css?v=1.8.0">
+  <link rel="stylesheet" href="css/automation.css?v=1.8.0">
 </head>
 <body>
   <!-- Hidden SLDS icon sprites (loaded by js/icons.js) -->
@@ -114,6 +116,22 @@
               <button id="btn-animate-flow" class="sf-toolbar__menu-item sf-toolbar__menu-item--icon">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="3" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="13" cy="8" r="2" fill="currentColor" stroke="none"/><path d="M5 8h6" stroke-dasharray="2 2"/><path d="M9.5 5.5L12 8l-2.5 2.5" stroke-linejoin="round"/></svg>
                 Animate Connectors
+              </button>
+              <div id="display-governance-separator" style="border-top:1px solid var(--border-color);margin:4px 0"></div>
+              <button id="btn-governance-layout" class="sf-toolbar__menu-item sf-toolbar__menu-item--icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="3" cy="4" r="1.4" fill="currentColor" stroke="none"/><circle cx="13" cy="4" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="13" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.4" fill="currentColor" stroke="none"/><path d="M4.2 4.8L6.4 6.8M11.8 4.8L9.6 6.8M5.2 12L6.7 9.6M10.8 12L9.3 9.6"/></svg>
+                Brain Dots Layout
+              </button>
+              <button id="btn-governance-prompt" class="sf-toolbar__menu-item">Generate Asset Prompt</button>
+
+              <div id="display-automation-separator" style="border-top:1px solid var(--border-color);margin:4px 0"></div>
+              <button id="btn-automation-import" class="sf-toolbar__menu-item sf-toolbar__menu-item--icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3"/><path d="M2 12h12"/></svg>
+                Import SFMC JSON
+              </button>
+              <button id="btn-automation-layout" class="sf-toolbar__menu-item sf-toolbar__menu-item--icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="3" cy="4" r="2" fill="currentColor" stroke="none"/><rect x="7" y="2" width="7" height="4" rx="1" fill="currentColor" stroke="none" opacity="0.7"/><circle cx="3" cy="12" r="2" fill="currentColor" stroke="none" opacity="0.6"/><rect x="7" y="10" width="7" height="4" rx="1" fill="currentColor" stroke="none" opacity="0.45"/><path d="M3 6v4M7 4h-4"/></svg>
+                Arrange by Step
               </button>
 
               <div id="display-gantt-separator" style="border-top:1px solid var(--border-color);margin:4px 0"></div>

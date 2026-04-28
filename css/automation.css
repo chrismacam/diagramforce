@@ -1,0 +1,108 @@
+/* SFMC Automation Drawer — same inner structure as governance drawer,
+   only the outer wrapper class differs so they can coexist on the page. */
+.sf-automation-drawer {
+  position: fixed;
+  top: calc(var(--toolbar-height, 52px) + var(--tabs-height, 40px));
+  right: 0;
+  bottom: 0;
+  width: min(420px, 92vw);
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border-color);
+  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.28);
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+}
+
+.sf-automation-drawer--open {
+  transform: translateX(0);
+}
+
+/* Import modal tab buttons */
+.sf-autoimport-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.sf-autoimport-tab {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sf-autoimport-tab:hover {
+  background: var(--surface-1);
+}
+
+.sf-autoimport-tab--active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+/* Panel visibility */
+.sf-autoimport-panel--hidden {
+  display: none;
+}
+
+/* Helper text above each textarea */
+.sf-autoimport-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sf-autoimport-hint code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  background: var(--surface-1);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+/* DE name input */
+.sf-autoimport-de-name {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* JSON textarea */
+.sf-autoimport-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  resize: vertical;
+}
+
+/* Validation / feedback message below panels */
+.sf-autoimport-msg {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  min-height: 16px;
+}

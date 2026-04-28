@@ -52,8 +52,12 @@ export function normalizeDiagramType(type) {
     architecture: 'architecture',
     process: 'process',
     sequence: 'sequence',
+    governance: 'governance',
+    sfmc: 'governance',
     gantt: 'gantt',
     org: 'org',
+    automation: 'automation',
+    'sfmc-automation': 'automation',
   };
   return aliases[String(type || '').toLowerCase()] || 'architecture';
 }
